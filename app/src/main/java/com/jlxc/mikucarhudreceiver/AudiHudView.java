@@ -29,12 +29,12 @@ public class AudiHudView extends View {
 
     // 这三个点对应背景图里的厂字型转速条：0 -> 3 为斜坡，3 -> 8 为水平段。
     // 后续如果你换了一张背景，只需要微调这里的原图坐标。
-    private static final PointF RPM_0 = new PointF(92f, 690f);
+    private static final PointF RPM_0 = new PointF(155f, 692f);
     // 厂字钝角并不在“3”这个数值点正下方，而是略微提前拐弯。
     // 所以这里拆成 0 -> KNEE -> 3 -> 8 四个锚点，避免简单直连导致角度不匹配。
-    private static final PointF RPM_KNEE = new PointF(448f, 356f);
-    private static final PointF RPM_3 = new PointF(494f, 356f);
-    private static final PointF RPM_8 = new PointF(1576f, 356f);
+    private static final PointF RPM_KNEE = new PointF(476f, 347f);
+    private static final PointF RPM_3 = new PointF(494f, 347f);
+    private static final PointF RPM_8 = new PointF(1576f, 347f);
     private static final float RPM_KNEE_VALUE = 2750f;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
@@ -127,94 +127,8 @@ public class AudiHudView extends View {
         if (debugMode) {
             drawBottomDebug(canvas, now, timedOut, fs);
         }
-        drawGridOverlay(canvas, fs);
     }
 
-
-    private void drawGridOverlay(Canvas canvas, float fs) {
-        // v11 对位 DEMO：用于截图后人工回传，便于重新计算进度条锚点。
-        float sx = bgDst.width() / DESIGN_W;
-        float sy = bgDst.height() / DESIGN_H;
-
-        Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gridPaint.setStyle(Paint.Style.STROKE);
-
-        // 背景有效区域边框
-        gridPaint.setStrokeWidth(Math.max(1f, bgDst.height() * 0.0016f));
-        gridPaint.setColor(Color.argb(110, 255, 255, 255));
-        canvas.drawRect(bgDst, gridPaint);
-
-        // 细网格：每 40 设计像素
-        gridPaint.setColor(Color.argb(42, 0, 255, 170));
-        gridPaint.setStrokeWidth(Math.max(1f, bgDst.height() * 0.0012f));
-        for (int x = 0; x <= (int) DESIGN_W; x += 40) {
-            float px = bgDst.left + x * sx;
-            canvas.drawLine(px, bgDst.top, px, bgDst.bottom, gridPaint);
-        }
-        for (int y = 0; y <= (int) DESIGN_H; y += 40) {
-            float py = bgDst.top + y * sy;
-            canvas.drawLine(bgDst.left, py, bgDst.right, py, gridPaint);
-        }
-
-        // 主网格：每 200 设计像素
-        gridPaint.setColor(Color.argb(90, 255, 200, 0));
-        gridPaint.setStrokeWidth(Math.max(1.5f, bgDst.height() * 0.0020f));
-        for (int x = 0; x <= (int) DESIGN_W; x += 200) {
-            float px = bgDst.left + x * sx;
-            canvas.drawLine(px, bgDst.top, px, bgDst.bottom, gridPaint);
-        }
-        for (int y = 0; y <= (int) DESIGN_H; y += 200) {
-            float py = bgDst.top + y * sy;
-            canvas.drawLine(bgDst.left, py, bgDst.right, py, gridPaint);
-        }
-
-        // 坐标标签
-        Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
-        labelPaint.setTypeface(OEM_LABEL_TYPEFACE);
-        labelPaint.setTextSize(bgDst.height() * 0.018f * fs);
-        labelPaint.setColor(Color.argb(210, 255, 220, 120));
-        labelPaint.setTextAlign(Paint.Align.LEFT);
-        for (int x = 0; x <= (int) DESIGN_W; x += 200) {
-            float px = bgDst.left + x * sx + 4f;
-            float py = bgDst.top + bgDst.height() * 0.020f;
-            canvas.drawText(String.valueOf(x), px, py, labelPaint);
-        }
-        for (int y = 0; y <= (int) DESIGN_H; y += 200) {
-            float px = bgDst.left + 4f;
-            float py = bgDst.top + y * sy - 4f;
-            if (py < bgDst.top + bgDst.height() * 0.020f) py = bgDst.top + bgDst.height() * 0.020f;
-            canvas.drawText(String.valueOf(y), px, py, labelPaint);
-        }
-
-        // 当前转速条锚点标记，方便你截图后直接对照。
-        drawGridAnchor(canvas, RPM_0, "P0 0", Color.rgb(255, 100, 100), fs);
-        drawGridAnchor(canvas, RPM_KNEE, "K 2.75", Color.rgb(255, 180, 60), fs);
-        drawGridAnchor(canvas, RPM_3, "P3 3.0", Color.rgb(255, 240, 80), fs);
-        drawGridAnchor(canvas, RPM_8, "P8 8.0", Color.rgb(255, 100, 180), fs);
-
-        labelPaint.setTextAlign(Paint.Align.RIGHT);
-        labelPaint.setColor(Color.argb(210, 255, 230, 160));
-        labelPaint.setTextSize(bgDst.height() * 0.024f * fs);
-        canvas.drawText("GRID DEMO", bgDst.right - 8f, bgDst.top + bgDst.height() * 0.030f, labelPaint);
-    }
-
-    private void drawGridAnchor(Canvas canvas, PointF designPoint, String label, int color, float fs) {
-        PointF p = mapDesignPoint(designPoint);
-        Paint marker = new Paint(Paint.ANTI_ALIAS_FLAG);
-        marker.setStyle(Paint.Style.FILL);
-        marker.setColor(color);
-        canvas.drawCircle(p.x, p.y, bgDst.height() * 0.0075f, marker);
-
-        marker.setStyle(Paint.Style.STROKE);
-        marker.setStrokeWidth(Math.max(1.5f, bgDst.height() * 0.0018f));
-        canvas.drawCircle(p.x, p.y, bgDst.height() * 0.013f, marker);
-
-        Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
-        labelPaint.setTypeface(OEM_LABEL_TYPEFACE);
-        labelPaint.setTextSize(bgDst.height() * 0.018f * fs);
-        labelPaint.setColor(color);
-        canvas.drawText(label, p.x + bgDst.width() * 0.008f, p.y - bgDst.height() * 0.008f, labelPaint);
-    }
 
     private void computeBackgroundRect(int viewW, int viewH) {
         float viewRatio = viewW / (float) viewH;
