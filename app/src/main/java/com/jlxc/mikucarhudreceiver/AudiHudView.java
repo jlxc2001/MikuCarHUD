@@ -29,9 +29,13 @@ public class AudiHudView extends View {
 
     // 这三个点对应背景图里的厂字型转速条：0 -> 3 为斜坡，3 -> 8 为水平段。
     // 后续如果你换了一张背景，只需要微调这里的原图坐标。
-    private static final PointF RPM_0 = new PointF(165f, 690f);
-    private static final PointF RPM_3 = new PointF(495f, 360f);
-    private static final PointF RPM_8 = new PointF(1576f, 360f);
+    private static final PointF RPM_0 = new PointF(92f, 690f);
+    // 厂字钝角并不在“3”这个数值点正下方，而是略微提前拐弯。
+    // 所以这里拆成 0 -> KNEE -> 3 -> 8 四个锚点，避免简单直连导致角度不匹配。
+    private static final PointF RPM_KNEE = new PointF(448f, 356f);
+    private static final PointF RPM_3 = new PointF(494f, 356f);
+    private static final PointF RPM_8 = new PointF(1576f, 356f);
+    private static final float RPM_KNEE_VALUE = 2750f;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
     private final Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
@@ -152,12 +156,15 @@ public class AudiHudView extends View {
     }
 
     private PointF pointForRpm(float rpm) {
-        float v = clamp(rpm / 1000f, 0f, 8f);
-        if (v <= 3f) {
-            float t = v / 3f;
-            return lerpPoint(RPM_0, RPM_3, t);
+        float v = clamp(rpm, 0f, 8000f);
+        if (v <= RPM_KNEE_VALUE) {
+            float t = v / RPM_KNEE_VALUE;
+            return lerpPoint(RPM_0, RPM_KNEE, t);
+        } else if (v <= 3000f) {
+            float t = (v - RPM_KNEE_VALUE) / (3000f - RPM_KNEE_VALUE);
+            return lerpPoint(RPM_KNEE, RPM_3, t);
         } else {
-            float t = (v - 3f) / 5f;
+            float t = (v - 3000f) / 5000f;
             return lerpPoint(RPM_3, RPM_8, t);
         }
     }
@@ -205,25 +212,38 @@ public class AudiHudView extends View {
         paint.setDither(true);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeJoin(Paint.Join.ROUND);
+        // 用 MITER/BEVEL 风格保留厂字钝角，不再把拐角圆滑化。
+        paint.setStrokeJoin(glow ? Paint.Join.BEVEL : Paint.Join.MITER);
+        paint.setStrokeMiter(8f);
         paint.setStrokeWidth(strokeWidth);
         paint.setColor(color);
         if (glow) {
-            paint.setShadowLayer(strokeWidth * 0.8f, 0f, 0f, color);
+            paint.setShadowLayer(strokeWidth * 0.65f, 0f, 0f, color);
         } else {
             paint.clearShadowLayer();
         }
 
-        if (startRpm < 3000f && endRpm > 3000f) {
-            drawRpmSegment(canvas, startRpm, 3000f, color, strokeWidth, glow);
-            drawRpmSegment(canvas, 3000f, endRpm, color, strokeWidth, glow);
-            return;
-        }
-
+        tempPath.reset();
         PointF start = mapDesignPoint(pointForRpm(startRpm));
         PointF end = mapDesignPoint(pointForRpm(endRpm));
-        tempPath.reset();
+        PointF knee = mapDesignPoint(RPM_KNEE);
+        PointF three = mapDesignPoint(RPM_3);
+
         tempPath.moveTo(start.x, start.y);
+
+        if (startRpm < RPM_KNEE_VALUE && endRpm > RPM_KNEE_VALUE) {
+            tempPath.lineTo(knee.x, knee.y);
+            if (endRpm > 3000f) {
+                tempPath.lineTo(three.x, three.y);
+            }
+        }
+
+        if (startRpm < 3000f && endRpm > 3000f) {
+            if (startRpm >= RPM_KNEE_VALUE) {
+                tempPath.lineTo(three.x, three.y);
+            }
+        }
+
         tempPath.lineTo(end.x, end.y);
         canvas.drawPath(tempPath, paint);
         paint.clearShadowLayer();
