@@ -1,3 +1,20 @@
+# MikuCarHudReceiver Audi Vector Tach v13
+
+本版本从 v12 备份版分支生成，开始执行“方案 B”：HUD 上半部分完全程序矢量化。
+
+## v13 关键变化
+
+- 已全盘保留 v12 作为回溯备份。
+- 不再绘制 `hud_tach_bg.png` 位图背景。
+- 厂字型转速表外框、刻度、0-8 数字、红区、`x1000 r/min` 全部由 `AudiHudView` 的 Canvas 矢量绘制。
+- 动态转速进度条和静态刻度共用同一套 `RPM_0 / RPM_3 / RPM_8` 几何参数，理论上不会再出现背景和进度条不匹配的问题。
+- 继续保留 UDP 接收、ADB 模拟、HUD 镜像、调试模式开关、左上角时间、车速、RPM、续航、转向、车门警告。
+- 字体策略继续保持：数字 `0-9` 优先加载 `app/src/main/assets/fonts/hud_oem.ttf`，中文/英文/单位继续使用系统 HUD 字体。
+
+> 注意：项目包内不附带字体文件。需要使用你自己的数字字体时，把字体文件放到 `app/src/main/assets/fonts/hud_oem.ttf` 后再编译。
+
+---
+
 # MikuCarHudReceiver - Audi HUD Clean UI v9
 
 安卓 HUD 接收端，用于接收车机端 MikuCarLauncher 在局域网内广播的 UDP JSON 车辆 Hook 数据。

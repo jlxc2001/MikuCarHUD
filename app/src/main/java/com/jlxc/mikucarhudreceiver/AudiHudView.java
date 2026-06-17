@@ -1,14 +1,11 @@
 package com.jlxc.mikucarhudreceiver;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
-import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.view.View;
@@ -19,35 +16,29 @@ import java.util.Locale;
 
 public class AudiHudView extends View {
     private static final long DATA_TIMEOUT_MS = 2000L;
+
+    // 仍然使用原背景图的 1672x941 坐标系，但 v13 起不再绘制位图背景。
+    // 厂字转速表、刻度、数字、进度条全部由 Canvas 同一套坐标生成，避免位图和进度条错位。
     private static final float DESIGN_W = 1672f;
     private static final float DESIGN_H = 941f;
 
-    // 动态数字优先使用 assets/fonts/hud_oem.ttf。
-    // GitHub Actions / 本地联网构建时会自动下载并打进 APK；没有字体文件时才回退系统字体。
     private static final Typeface OEM_LABEL_TYPEFACE = Typeface.create("sans-serif-condensed", Typeface.NORMAL);
+    private static final Typeface OEM_LABEL_BOLD_TYPEFACE = Typeface.create("sans-serif-condensed", Typeface.BOLD);
     private static final Typeface OEM_STATUS_TYPEFACE = Typeface.create("sans-serif", Typeface.BOLD);
 
-    // 这三个点对应背景图里的厂字型转速条：0 -> 3 为斜坡，3 -> 8 为水平段。
-    // 后续如果你换了一张背景，只需要微调这里的原图坐标。
-    private static final PointF RPM_0 = new PointF(155f, 692f);
-    // 厂字钝角并不在“3”这个数值点正下方，而是略微提前拐弯。
-    // 所以这里拆成 0 -> KNEE -> 3 -> 8 四个锚点，避免简单直连导致角度不匹配。
-    private static final PointF RPM_KNEE = new PointF(476f, 347f);
-    private static final PointF RPM_3 = new PointF(494f, 347f);
-    private static final PointF RPM_8 = new PointF(1576f, 347f);
-    private static final float RPM_KNEE_VALUE = 2750f;
+    // 转速表主路径。0-3 为斜坡，3-8 为水平段。静态刻度和动态进度条共用这三个点。
+    private static final PointF RPM_0 = new PointF(145f, 682f);
+    private static final PointF RPM_3 = new PointF(500f, 345f);
+    private static final PointF RPM_8 = new PointF(1575f, 345f);
+    private static final float RED_ZONE_START = 6.5f;
 
-    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
-    private final Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint numberPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.SUBPIXEL_TEXT_FLAG | Paint.LINEAR_TEXT_FLAG);
-    private Typeface hardNumberTypeface;
-    private final Rect textBounds = new Rect();
-    private final RectF bgDst = new RectF();
     private final Path tempPath = new Path();
+    private final RectF bgDst = new RectF();
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.CHINA);
 
-    private final Bitmap tachBackground;
-
+    private Typeface hardNumberTypeface;
     private VehicleData data;
     private long lastPacketAtMs = 0L;
     private String statusText = "正在启动 UDP 接收端";
@@ -62,10 +53,8 @@ public class AudiHudView extends View {
         super(context);
         setBackgroundColor(Color.BLACK);
         setFocusable(true);
-        // 转速进度和 HUD 发光文字用软件层更稳定，低端机也能跑。
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         hardNumberTypeface = HudFont.getNumberTypeface(context);
-        tachBackground = BitmapFactory.decodeResource(getResources(), R.drawable.hud_tach_bg);
     }
 
     public void setVehicleData(VehicleData data, String sender, int packetCount, long receivedAtMs) {
@@ -113,11 +102,14 @@ public class AudiHudView extends View {
         float fs = fontScale / 100f;
 
         canvas.drawColor(Color.BLACK);
-        computeBackgroundRect(w, h);
-        drawBackground(canvas);
+        computeDesignRect(w, h);
+
+        drawVectorTachometer(canvas, fs);
         drawRpmProgress(canvas);
+        drawRpmTicksAndLabels(canvas, fs);
+
         drawTime(canvas, fs);
-        drawTurnSignals(canvas, now, timedOut, fs);
+        drawTurnSignals(canvas, now, fs);
         if (debugMode) {
             drawStatus(canvas, now, timedOut, fs);
         }
@@ -129,45 +121,171 @@ public class AudiHudView extends View {
         }
     }
 
-
-    private void computeBackgroundRect(int viewW, int viewH) {
+    private void computeDesignRect(int viewW, int viewH) {
         float viewRatio = viewW / (float) viewH;
-        float bgRatio = DESIGN_W / DESIGN_H;
-        if (viewRatio > bgRatio) {
-            float drawW = viewH * bgRatio;
+        float designRatio = DESIGN_W / DESIGN_H;
+        if (viewRatio > designRatio) {
+            float drawW = viewH * designRatio;
             float left = (viewW - drawW) / 2f;
             bgDst.set(left, 0f, left + drawW, viewH);
         } else {
-            float drawH = viewW / bgRatio;
+            float drawH = viewW / designRatio;
             float top = (viewH - drawH) / 2f;
             bgDst.set(0f, top, viewW, top + drawH);
         }
     }
 
-    private void drawBackground(Canvas canvas) {
-        if (tachBackground != null && !tachBackground.isRecycled()) {
-            canvas.drawBitmap(tachBackground, null, bgDst, bgPaint);
-        }
+    private float scale() {
+        return bgDst.height() / DESIGN_H;
     }
 
-    private PointF mapDesignPoint(PointF p) {
+    private PointF dp(float x, float y) {
         float sx = bgDst.width() / DESIGN_W;
         float sy = bgDst.height() / DESIGN_H;
-        return new PointF(bgDst.left + p.x * sx, bgDst.top + p.y * sy);
+        return new PointF(bgDst.left + x * sx, bgDst.top + y * sy);
     }
 
-    private PointF pointForRpm(float rpm) {
-        float v = clamp(rpm, 0f, 8000f);
-        if (v <= RPM_KNEE_VALUE) {
-            float t = v / RPM_KNEE_VALUE;
-            return lerpPoint(RPM_0, RPM_KNEE, t);
-        } else if (v <= 3000f) {
-            float t = (v - RPM_KNEE_VALUE) / (3000f - RPM_KNEE_VALUE);
-            return lerpPoint(RPM_KNEE, RPM_3, t);
-        } else {
-            float t = (v - 3000f) / 5000f;
-            return lerpPoint(RPM_3, RPM_8, t);
+    private PointF dp(PointF p) {
+        return dp(p.x, p.y);
+    }
+
+    private void drawVectorTachometer(Canvas canvas, float fs) {
+        float s = scale();
+
+        // 厂字外框。此处和内部刻度路径同源生成，不再依赖位图背景。
+        Path frame = new Path();
+        PointF p1 = dp(75f, 700f);
+        PointF p2 = dp(155f, 700f);
+        PointF p3 = dp(500f, 365f);
+        PointF p4 = dp(1605f, 365f);
+        PointF p5 = dp(1632f, 338f);
+        PointF p6 = dp(1632f, 285f);
+        PointF p7 = dp(1605f, 258f);
+        PointF p8 = dp(460f, 258f);
+        PointF p9 = dp(75f, 625f);
+        frame.moveTo(p1.x, p1.y);
+        frame.lineTo(p2.x, p2.y);
+        frame.lineTo(p3.x, p3.y);
+        frame.lineTo(p4.x, p4.y);
+        frame.lineTo(p5.x, p5.y);
+        frame.lineTo(p6.x, p6.y);
+        frame.lineTo(p7.x, p7.y);
+        frame.lineTo(p8.x, p8.y);
+        frame.lineTo(p9.x, p9.y);
+        frame.close();
+
+        paint.reset();
+        paint.setAntiAlias(true);
+        paint.setDither(true);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeJoin(Paint.Join.MITER);
+        paint.setStrokeMiter(8f);
+        paint.setStrokeCap(Paint.Cap.SQUARE);
+        paint.setStrokeWidth(Math.max(1.6f, 2.2f * s));
+        paint.setColor(Color.argb(225, 245, 250, 255));
+        paint.setShadowLayer(2.5f * s, 0f, 0f, Color.argb(90, 255, 255, 255));
+        canvas.drawPath(frame, paint);
+        paint.clearShadowLayer();
+
+        // 内侧主刻度基准线。
+        Path base = new Path();
+        PointF a = dp(RPM_0);
+        PointF b = dp(RPM_3);
+        PointF c = dp(RPM_8);
+        base.moveTo(a.x, a.y);
+        base.lineTo(b.x, b.y);
+        base.lineTo(c.x, c.y);
+        paint.setStrokeWidth(Math.max(1.2f, 1.8f * s));
+        paint.setColor(Color.argb(210, 235, 245, 255));
+        paint.setShadowLayer(1.8f * s, 0f, 0f, Color.argb(80, 255, 255, 255));
+        canvas.drawPath(base, paint);
+        paint.clearShadowLayer();
+
+        drawHardText(canvas, "x1000 r/min",
+                bgDst.left + bgDst.width() * 0.128f,
+                bgDst.top + bgDst.height() * 0.740f,
+                bgDst.height() * 0.035f * fs, Paint.Align.LEFT,
+                Color.rgb(235, 245, 250), bgDst.height() * 0.0025f, 0.94f, 0.92f);
+    }
+
+    private void drawRpmTicksAndLabels(Canvas canvas, float fs) {
+        float s = scale();
+        int minorCount = 8 * 10;
+        for (int i = 0; i <= minorCount; i++) {
+            float value = i / 10f;
+            boolean major = i % 10 == 0;
+            boolean half = i % 5 == 0 && !major;
+            float len = major ? 38f : (half ? 28f : 16f);
+            float stroke = major ? 3.6f : (half ? 2.4f : 1.7f);
+            int color = value >= RED_ZONE_START ? Color.rgb(255, 20, 20) : Color.rgb(238, 246, 250);
+            drawTick(canvas, value, len * s, stroke * s, color);
         }
+
+        for (int i = 0; i <= 8; i++) {
+            PointF base = pointForValue(i);
+            PointF pos;
+            if (i < 3) {
+                PointF n = normalForValue(i);
+                // 斜坡数字沿斜线外侧摆放，保持厂字仪表感。
+                pos = new PointF(base.x + n.x * 72f, base.y + n.y * 72f + 10f);
+            } else {
+                pos = new PointF(base.x, base.y - 70f);
+            }
+            PointF screen = dp(pos);
+            int color = i >= 7 ? Color.rgb(255, 20, 20) : Color.rgb(245, 248, 250);
+            drawHardText(canvas, String.valueOf(i), screen.x, screen.y,
+                    bgDst.height() * 0.052f * fs, Paint.Align.CENTER,
+                    color, bgDst.height() * 0.0025f, 0.96f, 0.88f);
+        }
+    }
+
+    private void drawTick(Canvas canvas, float value, float lengthPx, float strokePx, int color) {
+        PointF p = pointForValue(value);
+        PointF n = normalForValue(value);
+        PointF a = dp(p.x, p.y);
+        PointF b = dp(p.x + n.x * (lengthPx / scale()), p.y + n.y * (lengthPx / scale()));
+
+        paint.reset();
+        paint.setAntiAlias(true);
+        paint.setDither(true);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.SQUARE);
+        paint.setStrokeWidth(Math.max(1f, strokePx));
+        paint.setColor(color);
+        if (value >= RED_ZONE_START) {
+            paint.setShadowLayer(2.2f * scale(), 0f, 0f, Color.argb(110, 255, 0, 0));
+        }
+        canvas.drawLine(a.x, a.y, b.x, b.y, paint);
+        paint.clearShadowLayer();
+    }
+
+    private PointF pointForValue(float value) {
+        value = clamp(value, 0f, 8f);
+        if (value <= 3f) {
+            return lerpPoint(RPM_0, RPM_3, value / 3f);
+        }
+        return lerpPoint(RPM_3, RPM_8, (value - 3f) / 5f);
+    }
+
+    private PointF normalForValue(float value) {
+        PointF a;
+        PointF b;
+        if (value <= 3f) {
+            a = RPM_0;
+            b = RPM_3;
+        } else {
+            a = RPM_3;
+            b = RPM_8;
+        }
+        float dx = b.x - a.x;
+        float dy = b.y - a.y;
+        float len = (float) Math.sqrt(dx * dx + dy * dy);
+        if (len <= 0.0001f) return new PointF(0f, -1f);
+        if (value <= 3f) {
+            // 斜坡段刻度向外上方伸出。
+            return new PointF(dy / len, -dx / len);
+        }
+        return new PointF(0f, -1f);
     }
 
     private PointF lerpPoint(PointF a, PointF b, float t) {
@@ -177,74 +295,65 @@ public class AudiHudView extends View {
 
     private void drawRpmProgress(Canvas canvas) {
         if (data == null) return;
-        float rpm = clamp(data.rpm, 0f, 8000f);
-        if (rpm <= 10f) return;
+        float rpmValue = clamp(data.rpm / 1000f, 0f, 8f);
+        if (rpmValue <= 0.01f) return;
 
-        float baseStroke = Math.max(4f, bgDst.height() * 0.010f);
-        float glowStroke = Math.max(12f, bgDst.height() * 0.025f);
+        float s = scale();
+        float baseStroke = Math.max(4f, 9f * s);
+        float glowStroke = Math.max(12f, 28f * s);
 
-        // 先画一层青白色发光底，再画实线。
-        drawRpmSegment(canvas, 0f, Math.min(rpm, 6500f), Color.argb(95, 80, 240, 255), glowStroke, true);
-        drawRpmSegment(canvas, 0f, Math.min(rpm, 6500f), Color.rgb(235, 255, 255), baseStroke, false);
+        drawProgressRange(canvas, 0f, Math.min(rpmValue, RED_ZONE_START),
+                Color.argb(95, 80, 245, 255), glowStroke, true);
+        drawProgressRange(canvas, 0f, Math.min(rpmValue, RED_ZONE_START),
+                Color.rgb(235, 255, 255), baseStroke, false);
 
-        // 6500 转以后进入红区。
-        if (rpm > 6500f) {
-            drawRpmSegment(canvas, 6500f, rpm, Color.argb(120, 255, 0, 0), glowStroke, true);
-            drawRpmSegment(canvas, 6500f, rpm, Color.rgb(255, 0, 0), baseStroke, false);
+        if (rpmValue > RED_ZONE_START) {
+            drawProgressRange(canvas, RED_ZONE_START, rpmValue,
+                    Color.argb(125, 255, 0, 0), glowStroke, true);
+            drawProgressRange(canvas, RED_ZONE_START, rpmValue,
+                    Color.rgb(255, 20, 20), baseStroke, false);
         }
 
-        // 当前转速点。
-        PointF end = mapDesignPoint(pointForRpm(rpm));
-        boolean red = rpm >= 6500f;
+        PointF end = dp(pointForValue(rpmValue));
+        boolean red = rpmValue >= RED_ZONE_START;
+        paint.reset();
+        paint.setAntiAlias(true);
         paint.setStyle(Paint.Style.FILL);
-        paint.setColor(red ? Color.argb(130, 255, 0, 0) : Color.argb(130, 80, 240, 255));
-        canvas.drawCircle(end.x, end.y, bgDst.height() * 0.020f, paint);
+        paint.setColor(red ? Color.argb(145, 255, 0, 0) : Color.argb(145, 80, 240, 255));
+        paint.setShadowLayer(12f * s, 0f, 0f, paint.getColor());
+        canvas.drawCircle(end.x, end.y, 17f * s, paint);
+        paint.clearShadowLayer();
         paint.setColor(red ? Color.rgb(255, 30, 30) : Color.rgb(240, 255, 255));
-        canvas.drawCircle(end.x, end.y, bgDst.height() * 0.009f, paint);
+        canvas.drawCircle(end.x, end.y, 7f * s, paint);
     }
 
-    private void drawRpmSegment(Canvas canvas, float startRpm, float endRpm, int color, float strokeWidth, boolean glow) {
-        startRpm = clamp(startRpm, 0f, 8000f);
-        endRpm = clamp(endRpm, 0f, 8000f);
-        if (endRpm <= startRpm) return;
+    private void drawProgressRange(Canvas canvas, float startValue, float endValue,
+                                   int color, float strokeWidth, boolean glow) {
+        startValue = clamp(startValue, 0f, 8f);
+        endValue = clamp(endValue, 0f, 8f);
+        if (endValue <= startValue) return;
 
         paint.reset();
         paint.setAntiAlias(true);
         paint.setDither(true);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeCap(Paint.Cap.ROUND);
-        // 用 MITER/BEVEL 风格保留厂字钝角，不再把拐角圆滑化。
-        paint.setStrokeJoin(glow ? Paint.Join.BEVEL : Paint.Join.MITER);
-        paint.setStrokeMiter(8f);
+        paint.setStrokeJoin(Paint.Join.MITER);
+        paint.setStrokeMiter(10f);
         paint.setStrokeWidth(strokeWidth);
         paint.setColor(color);
         if (glow) {
-            paint.setShadowLayer(strokeWidth * 0.65f, 0f, 0f, color);
-        } else {
-            paint.clearShadowLayer();
+            paint.setShadowLayer(strokeWidth * 0.6f, 0f, 0f, color);
         }
 
         tempPath.reset();
-        PointF start = mapDesignPoint(pointForRpm(startRpm));
-        PointF end = mapDesignPoint(pointForRpm(endRpm));
-        PointF knee = mapDesignPoint(RPM_KNEE);
-        PointF three = mapDesignPoint(RPM_3);
-
+        PointF start = dp(pointForValue(startValue));
         tempPath.moveTo(start.x, start.y);
-
-        if (startRpm < RPM_KNEE_VALUE && endRpm > RPM_KNEE_VALUE) {
-            tempPath.lineTo(knee.x, knee.y);
-            if (endRpm > 3000f) {
-                tempPath.lineTo(three.x, three.y);
-            }
+        if (startValue < 3f && endValue > 3f) {
+            PointF corner = dp(RPM_3);
+            tempPath.lineTo(corner.x, corner.y);
         }
-
-        if (startRpm < 3000f && endRpm > 3000f) {
-            if (startRpm >= RPM_KNEE_VALUE) {
-                tempPath.lineTo(three.x, three.y);
-            }
-        }
-
+        PointF end = dp(pointForValue(endValue));
         tempPath.lineTo(end.x, end.y);
         canvas.drawPath(tempPath, paint);
         paint.clearShadowLayer();
@@ -271,10 +380,6 @@ public class AudiHudView extends View {
         paint.setTextSize(bgDst.height() * 0.040f * fs);
         drawGlowText(canvas, status, bgDst.centerX(), y, color, bgDst.height() * 0.010f);
 
-        paint.setTypeface(OEM_LABEL_TYPEFACE);
-        paint.setTextSize(bgDst.height() * 0.025f * fs);
-        paint.setTextAlign(Paint.Align.RIGHT);
-        paint.setColor(Color.rgb(120, 150, 160));
         String age = lastPacketAtMs <= 0L ? "--" : (now - lastPacketAtMs) + "ms";
         drawHardText(canvas, "UDP " + listenPort + "  " + age,
                 bgDst.right - bgDst.width() * 0.035f, y,
@@ -292,10 +397,14 @@ public class AudiHudView extends View {
                 bgDst.height() * 0.305f * fs, Paint.Align.CENTER,
                 Color.WHITE, bgDst.height() * 0.006f, 1.0f, 0.82f);
 
+        paint.reset();
+        paint.setAntiAlias(true);
         paint.setTypeface(OEM_LABEL_TYPEFACE);
+        paint.setTextAlign(Paint.Align.CENTER);
         paint.setTextSize(bgDst.height() * 0.047f * fs);
         paint.setTextScaleX(0.96f);
-        drawGlowText(canvas, "km/h", centerX, baseline + bgDst.height() * 0.078f, Color.rgb(135, 230, 255), bgDst.height() * 0.008f);
+        drawGlowText(canvas, "km/h", centerX, baseline + bgDst.height() * 0.078f,
+                Color.rgb(135, 230, 255), bgDst.height() * 0.008f);
         paint.setTextScaleX(1.0f);
     }
 
@@ -357,7 +466,7 @@ public class AudiHudView extends View {
         drawGlowText(canvas, warning, bgDst.centerX(), y, color, bgDst.height() * 0.008f);
     }
 
-    private void drawTurnSignals(Canvas canvas, long now, boolean timedOut, float fs) {
+    private void drawTurnSignals(Canvas canvas, long now, float fs) {
         if (data == null) return;
         boolean blinkOn = ((now / 330L) % 2L) == 0L;
         boolean showLeft = data.hazard || data.leftTurn;
@@ -381,13 +490,6 @@ public class AudiHudView extends View {
     }
 
     private void drawBottomDebug(Canvas canvas, long now, boolean timedOut, float fs) {
-        paint.reset();
-        paint.setAntiAlias(true);
-        paint.setTypeface(OEM_LABEL_TYPEFACE);
-        paint.setTextAlign(Paint.Align.LEFT);
-        paint.setTextSize(bgDst.height() * 0.022f * fs);
-        paint.setColor(Color.rgb(85, 110, 118));
-
         long age = lastPacketAtMs <= 0L ? -1L : now - lastPacketAtMs;
         String ageText = age < 0 ? "N/A" : age + "ms";
         String left = String.format(Locale.CHINA,
@@ -398,7 +500,6 @@ public class AudiHudView extends View {
                 bgDst.height() * 0.022f * fs, Paint.Align.LEFT,
                 Color.rgb(85, 110, 118), 0f, 0.85f, 0.82f);
 
-        paint.setTextAlign(Paint.Align.RIGHT);
         String right;
         if (data != null) {
             String dbg = trimDebug(safe(data.debugText), 28);
@@ -416,7 +517,6 @@ public class AudiHudView extends View {
                 Color.rgb(85, 110, 118), 0f, 0.85f, 0.82f);
     }
 
-
     private void drawHardText(Canvas canvas, String text, float x, float baseline, float textSize,
                               Paint.Align align, int color, float glowRadius,
                               float alphaScale, float textScaleX) {
@@ -425,8 +525,6 @@ public class AudiHudView extends View {
         int drawColor = Color.argb(Math.round(Color.alpha(color) * alphaScale),
                 Color.red(color), Color.green(color), Color.blue(color));
 
-        // 规则：只有数字 0-9 使用用户放入 assets/fonts/hud_oem.ttf 的硬朗字体；
-        // 英文、中文、单位、符号全部继续使用原来的 HUD 字体，避免 km/h、RANGE、中文状态也被拉成数字字体。
         if (glowRadius > 0f) {
             drawMixedNumberText(canvas, text, x, baseline, textSize, align,
                     drawColor, textScaleX, glowRadius);
