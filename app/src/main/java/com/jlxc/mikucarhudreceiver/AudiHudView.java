@@ -299,31 +299,24 @@ public class AudiHudView extends View {
         if (rpmValue <= 0.01f) return;
 
         float s = scale();
-        float baseStroke = Math.max(4f, 9f * s);
-        float glowStroke = Math.max(12f, 28f * s);
+        float baseStroke = Math.max(7f, 12f * s);
+        float glowStroke = Math.max(18f, 34f * s);
 
-        drawProgressRange(canvas, 0f, Math.min(rpmValue, RED_ZONE_START),
-                Color.argb(95, 80, 245, 255), glowStroke, true);
-        drawProgressRange(canvas, 0f, Math.min(rpmValue, RED_ZONE_START),
-                Color.rgb(235, 255, 255), baseStroke, false);
-
-        if (rpmValue > RED_ZONE_START) {
-            drawProgressRange(canvas, RED_ZONE_START, rpmValue,
-                    Color.argb(125, 255, 0, 0), glowStroke, true);
-            drawProgressRange(canvas, RED_ZONE_START, rpmValue,
-                    Color.rgb(255, 20, 20), baseStroke, false);
-        }
+        // 战斗风格尝试：整个当前转速区间统一红色填充，不再区分青色低转与红区。
+        drawProgressRange(canvas, 0f, rpmValue,
+                Color.argb(150, 255, 0, 0), glowStroke, true);
+        drawProgressRange(canvas, 0f, rpmValue,
+                Color.rgb(255, 28, 28), baseStroke, false);
 
         PointF end = dp(pointForValue(rpmValue));
-        boolean red = rpmValue >= RED_ZONE_START;
         paint.reset();
         paint.setAntiAlias(true);
         paint.setStyle(Paint.Style.FILL);
-        paint.setColor(red ? Color.argb(145, 255, 0, 0) : Color.argb(145, 80, 240, 255));
-        paint.setShadowLayer(12f * s, 0f, 0f, paint.getColor());
-        canvas.drawCircle(end.x, end.y, 17f * s, paint);
+        paint.setColor(Color.argb(170, 255, 0, 0));
+        paint.setShadowLayer(14f * s, 0f, 0f, paint.getColor());
+        canvas.drawCircle(end.x, end.y, 18f * s, paint);
         paint.clearShadowLayer();
-        paint.setColor(red ? Color.rgb(255, 30, 30) : Color.rgb(240, 255, 255));
+        paint.setColor(Color.rgb(255, 235, 235));
         canvas.drawCircle(end.x, end.y, 7f * s, paint);
     }
 
@@ -409,20 +402,14 @@ public class AudiHudView extends View {
     }
 
     private void drawInfoBlocks(Canvas canvas, float fs) {
-        int rpm = data == null ? 0 : data.rpm;
         int range = data == null ? 0 : data.rangeKm;
         long odo = data == null ? 0L : data.totalMileageKm;
 
-        drawInfoBlock(canvas,
-                "RPM", String.format(Locale.CHINA, "%04d", Math.max(0, rpm)),
-                bgDst.left + bgDst.width() * 0.135f,
-                bgDst.top + bgDst.height() * 0.820f,
-                fs);
-
-        drawInfoBlock(canvas,
-                "RANGE", range + " km",
-                bgDst.left + bgDst.width() * 0.775f,
-                bgDst.top + bgDst.height() * 0.820f,
+        // 左下角 RPM 数值按需求删除，仅保留右侧大号剩余里程。
+        drawRangeValueOnly(canvas,
+                range + " km",
+                getWidth() - 10f,
+                bgDst.top + bgDst.height() * 0.840f,
                 fs);
 
         if (debugMode) {
@@ -433,21 +420,11 @@ public class AudiHudView extends View {
         }
     }
 
-    private void drawInfoBlock(Canvas canvas, String label, String value, float x, float y, float fs) {
-        float labelSize = bgDst.height() * 0.027f * fs;
+    private void drawRangeValueOnly(Canvas canvas, String value, float rightX, float y, float fs) {
         float valueSize = bgDst.height() * 0.110f * fs;
-
-        paint.reset();
-        paint.setAntiAlias(true);
-        paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTypeface(OEM_LABEL_TYPEFACE);
-        paint.setTextSize(labelSize);
-        paint.setColor(Color.rgb(110, 185, 205));
-        canvas.drawText(label, x, y - bgDst.height() * 0.035f, paint);
-
-        drawHardText(canvas, value, x, y + bgDst.height() * 0.020f,
-                valueSize, Paint.Align.CENTER,
-                Color.rgb(235, 255, 255), bgDst.height() * 0.003f, 1.0f, 0.88f);
+        drawHardText(canvas, value, rightX, y,
+                valueSize, Paint.Align.RIGHT,
+                Color.rgb(235, 255, 255), bgDst.height() * 0.0035f, 1.0f, 0.88f);
     }
 
     private void drawWarnings(Canvas canvas, float fs) {
