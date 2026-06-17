@@ -285,3 +285,9 @@ app/src/main/assets/fonts/hud_oem.ttf
 ```
 
 App 会通过 `HudFont` 优先加载该字体；加载失败时才回退到系统字体。GitHub Actions 不再联网下载字体。
+
+
+## v8 mixed font
+- 数字 0-9 使用 assets/fonts/hud_oem.ttf。
+- 英文、中文、单位与符号继续使用原 HUD 字体。
+- 厂字型转速进度条保留 v7 对齐修正。

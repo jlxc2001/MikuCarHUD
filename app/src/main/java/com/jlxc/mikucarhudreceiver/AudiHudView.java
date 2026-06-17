@@ -27,9 +27,9 @@ public class AudiHudView extends View {
 
     // 这三个点对应背景图里的厂字型转速条：0 -> 3 为斜坡，3 -> 8 为水平段。
     // 后续如果你换了一张背景，只需要微调这里的原图坐标。
-    private static final PointF RPM_0 = new PointF(150f, 672f);
-    private static final PointF RPM_3 = new PointF(488f, 344f);
-    private static final PointF RPM_8 = new PointF(1576f, 345f);
+    private static final PointF RPM_0 = new PointF(165f, 690f);
+    private static final PointF RPM_3 = new PointF(495f, 360f);
+    private static final PointF RPM_8 = new PointF(1576f, 360f);
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
     private final Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
@@ -393,26 +393,84 @@ public class AudiHudView extends View {
         int drawColor = Color.argb(Math.round(Color.alpha(color) * alphaScale),
                 Color.red(color), Color.green(color), Color.blue(color));
 
+        // 规则：只有数字 0-9 使用用户放入 assets/fonts/hud_oem.ttf 的硬朗字体；
+        // 英文、中文、单位、符号全部继续使用原来的 HUD 字体，避免 km/h、RANGE、中文状态也被拉成数字字体。
+        if (glowRadius > 0f) {
+            drawMixedNumberText(canvas, text, x, baseline, textSize, align,
+                    drawColor, textScaleX, glowRadius);
+        }
+        drawMixedNumberText(canvas, text, x, baseline, textSize, align,
+                drawColor, textScaleX, 0f);
+    }
+
+    private void drawMixedNumberText(Canvas canvas, String text, float x, float baseline, float textSize,
+                                     Paint.Align align, int color, float textScaleX, float glowRadius) {
+        if (text == null || text.isEmpty()) return;
+
+        float totalWidth = measureMixedNumberText(text, textSize, textScaleX);
+        float cursorX = x;
+        if (align == Paint.Align.CENTER) {
+            cursorX = x - totalWidth / 2f;
+        } else if (align == Paint.Align.RIGHT) {
+            cursorX = x - totalWidth;
+        }
+
         numberPaint.reset();
         numberPaint.setAntiAlias(true);
         numberPaint.setDither(true);
         numberPaint.setSubpixelText(true);
         numberPaint.setLinearText(true);
         numberPaint.setStyle(Paint.Style.FILL);
-        numberPaint.setTypeface(hardNumberTypeface == null ? HudFont.getNumberTypeface(getContext()) : hardNumberTypeface);
-        numberPaint.setTextAlign(align);
+        numberPaint.setTextAlign(Paint.Align.LEFT);
         numberPaint.setTextSize(textSize);
         numberPaint.setTextScaleX(textScaleX);
-        numberPaint.setColor(drawColor);
-
-        // 这里刻意把发光半径压低：发光太重会把硬朗字体糊成圆体。
+        numberPaint.setColor(color);
         if (glowRadius > 0f) {
-            numberPaint.setShadowLayer(glowRadius, 0f, 0f, drawColor);
-            canvas.drawText(text, x, baseline, numberPaint);
-            numberPaint.clearShadowLayer();
+            numberPaint.setShadowLayer(glowRadius, 0f, 0f, color);
         }
-        canvas.drawText(text, x, baseline, numberPaint);
+
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            String ch = new String(Character.toChars(cp));
+            numberPaint.setTypeface(isAsciiDigit(cp)
+                    ? (hardNumberTypeface == null ? HudFont.getNumberTypeface(getContext()) : hardNumberTypeface)
+                    : OEM_LABEL_TYPEFACE);
+            canvas.drawText(ch, cursorX, baseline, numberPaint);
+            cursorX += numberPaint.measureText(ch);
+            i += Character.charCount(cp);
+        }
+
+        numberPaint.clearShadowLayer();
         numberPaint.setTextScaleX(1.0f);
+    }
+
+    private float measureMixedNumberText(String text, float textSize, float textScaleX) {
+        if (text == null || text.isEmpty()) return 0f;
+        numberPaint.reset();
+        numberPaint.setAntiAlias(true);
+        numberPaint.setSubpixelText(true);
+        numberPaint.setLinearText(true);
+        numberPaint.setTextSize(textSize);
+        numberPaint.setTextScaleX(textScaleX);
+
+        float width = 0f;
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            String ch = new String(Character.toChars(cp));
+            numberPaint.setTypeface(isAsciiDigit(cp)
+                    ? (hardNumberTypeface == null ? HudFont.getNumberTypeface(getContext()) : hardNumberTypeface)
+                    : OEM_LABEL_TYPEFACE);
+            width += numberPaint.measureText(ch);
+            i += Character.charCount(cp);
+        }
+        numberPaint.setTextScaleX(1.0f);
+        return width;
+    }
+
+    private static boolean isAsciiDigit(int codePoint) {
+        return codePoint >= '0' && codePoint <= '9';
     }
 
     private void drawGlowText(Canvas canvas, String text, float x, float y, int color, float glowRadius) {
