@@ -10,8 +10,8 @@ android {
         applicationId 'com.jlxc.mikucarhudreceiver'
         minSdk 23
         targetSdk 35
-        versionCode 15
-        versionName '0.15.0-vector-tach-labels-smaller-lower'
+        versionCode 17
+        versionName '0.17.0-tach-012-shift-right'
     }
 
     compileOptions {

@@ -30,7 +30,7 @@ public class AudiHudView extends View {
     private static final PointF RPM_0 = new PointF(145f, 682f);
     private static final PointF RPM_3 = new PointF(500f, 345f);
     private static final PointF RPM_8 = new PointF(1575f, 345f);
-    private static final float RED_ZONE_START = 6.5f;
+    private static final float RED_ZONE_START = 5.5f;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint numberPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.SUBPIXEL_TEXT_FLAG | Paint.LINEAR_TEXT_FLAG);
@@ -227,7 +227,7 @@ public class AudiHudView extends View {
             if (i < 3) {
                 PointF n = normalForValue(i);
                 // 斜坡数字沿斜线外侧摆放，保持厂字仪表感。
-                pos = new PointF(base.x + n.x * 72f, base.y + n.y * 72f + 10f);
+                pos = new PointF(base.x + n.x * 72f + 18f, base.y + n.y * 72f + 10f);
             } else {
                 pos = new PointF(base.x, base.y - 56f);
             }
@@ -364,7 +364,7 @@ public class AudiHudView extends View {
         drawHardText(canvas, time,
                 bgDst.left + bgDst.width() * 0.035f,
                 bgDst.top + bgDst.height() * 0.105f,
-                bgDst.height() * 0.043f * fs, Paint.Align.LEFT,
+                bgDst.height() * 0.129f * fs, Paint.Align.LEFT,
                 Color.rgb(235, 255, 255), bgDst.height() * 0.004f, 0.92f, 0.88f);
     }
 
@@ -435,7 +435,7 @@ public class AudiHudView extends View {
 
     private void drawInfoBlock(Canvas canvas, String label, String value, float x, float y, float fs) {
         float labelSize = bgDst.height() * 0.027f * fs;
-        float valueSize = bgDst.height() * 0.055f * fs;
+        float valueSize = bgDst.height() * 0.110f * fs;
 
         paint.reset();
         paint.setAntiAlias(true);
