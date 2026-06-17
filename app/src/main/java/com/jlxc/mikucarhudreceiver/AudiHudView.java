@@ -229,12 +229,12 @@ public class AudiHudView extends View {
                 // 斜坡数字沿斜线外侧摆放，保持厂字仪表感。
                 pos = new PointF(base.x + n.x * 72f, base.y + n.y * 72f + 10f);
             } else {
-                pos = new PointF(base.x, base.y - 70f);
+                pos = new PointF(base.x, base.y - 56f);
             }
             PointF screen = dp(pos);
             int color = i >= 7 ? Color.rgb(255, 20, 20) : Color.rgb(245, 248, 250);
             drawHardText(canvas, String.valueOf(i), screen.x, screen.y,
-                    bgDst.height() * 0.043f * fs, Paint.Align.CENTER,
+                    bgDst.height() * 0.037f * fs, Paint.Align.CENTER,
                     color, bgDst.height() * 0.0025f, 0.96f, 0.88f);
         }
     }
