@@ -363,9 +363,36 @@ public class AudiHudView extends View {
     private PointF upperPointForValue(float value) {
         value = clamp(value, 0f, 8f);
         if (value <= 3f) {
+            // 低转斜坡段：让填充末端与背景壁面保持 90° 垂直，使用下壁法线去求与上壁的交点。
+            PointF lower = pointForValue(value);
+            PointF tangent = new PointF(RPM_3.x - RPM_0.x, RPM_3.y - RPM_0.y);
+            PointF normal = normalize(new PointF(tangent.y, -tangent.x)); // 指向左上
+            PointF hit = intersectRayWithLine(lower, normal, FRAME_TOP_LEFT, FRAME_TOP_KNEE);
+            if (hit != null) return hit;
             return lerpPoint(FRAME_TOP_LEFT, FRAME_TOP_KNEE, value / 3f);
         }
-        return lerpPoint(FRAME_TOP_KNEE, FRAME_TOP_RIGHT, (value - 3f) / 5f);
+        // 高转水平段：末端直接做成竖直切面，与上下壁 90° 垂直。
+        PointF lower = pointForValue(value);
+        return new PointF(lower.x, FRAME_TOP_KNEE.y);
+    }
+
+    private PointF normalize(PointF v) {
+        float len = (float) Math.sqrt(v.x * v.x + v.y * v.y);
+        if (len <= 0.0001f) return new PointF(0f, -1f);
+        return new PointF(v.x / len, v.y / len);
+    }
+
+    private PointF intersectRayWithLine(PointF rayStart, PointF rayDir, PointF lineA, PointF lineB) {
+        float rx = rayDir.x;
+        float ry = rayDir.y;
+        float sx = lineB.x - lineA.x;
+        float sy = lineB.y - lineA.y;
+        float denom = rx * sy - ry * sx;
+        if (Math.abs(denom) < 0.0001f) return null;
+        float qpx = lineA.x - rayStart.x;
+        float qpy = lineA.y - rayStart.y;
+        float t = (qpx * sy - qpy * sx) / denom;
+        return new PointF(rayStart.x + rx * t, rayStart.y + ry * t);
     }
 
     private void drawTime(Canvas canvas, float fs) {
