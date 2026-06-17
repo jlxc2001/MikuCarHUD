@@ -1,0 +1,32 @@
+{
+  "protocol": "MikuCarHUD",
+  "version": 1,
+  "source": "MikuCarLauncher",
+  "seq": 1,
+  "timestampElapsedMs": 123456,
+  "valid": true,
+  "speedKmh": 0,
+  "rpm": 804,
+  "rangeKm": 540,
+  "fuelLevel": 0,
+  "totalMileageKm": 0,
+  "driverSeatbelt": true,
+  "passengerSeatbelt": true,
+  "doors": {
+    "frontLeft": false,
+    "frontRight": false,
+    "rearLeft": false,
+    "rearRight": false,
+    "trunk": false,
+    "hood": false
+  },
+  "leftTurn": false,
+  "rightTurn": false,
+  "highBeam": false,
+  "hazard": false,
+  "frontRadar": [],
+  "rearRadar": [],
+  "rawBaseInfo": [],
+  "dataSource": "sample",
+  "debugText": "sample packet"
+}
