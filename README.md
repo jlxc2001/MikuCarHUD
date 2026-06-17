@@ -275,3 +275,13 @@ adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez driverSeat
 当前 Audi HUD 主界面的动态数字不使用数码管字体，统一使用 Android 系统内置 `sans-serif-condensed` 加粗窄体，视觉上更接近奥迪原厂仪表常见的硬朗数字风格，并且兼容 Android 6/7 这类旧手机。
 
 背景图 `hud_tach_bg.png` 内自带的 0-8 转速刻度数字保持不变，不在代码中重绘。
+
+## v6 字体说明
+
+本版本已将用户提供的 HUD 数字字体直接集成到 APK assets 中：
+
+```text
+app/src/main/assets/fonts/hud_oem.ttf
+```
+
+App 会通过 `HudFont` 优先加载该字体；加载失败时才回退到系统字体。GitHub Actions 不再联网下载字体。
