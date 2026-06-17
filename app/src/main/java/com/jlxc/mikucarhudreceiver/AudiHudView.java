@@ -246,9 +246,9 @@ public class AudiHudView extends View {
 
     private void drawTick(Canvas canvas, float value, float lengthPx, float strokePx, int color) {
         PointF p = pointForValue(value);
-        PointF n = normalForValue(value);
+        PointF dir = tickDirectionForValue(value);
         PointF a = dp(p.x, p.y);
-        PointF b = dp(p.x + n.x * (lengthPx / scale()), p.y + n.y * (lengthPx / scale()));
+        PointF b = dp(p.x + dir.x * (lengthPx / scale()), p.y + dir.y * (lengthPx / scale()));
 
         paint.reset();
         paint.setAntiAlias(true);
@@ -272,6 +272,28 @@ public class AudiHudView extends View {
         return lerpPoint(RPM_3, RPM_8, (value - 3f) / 5f);
     }
 
+
+    private PointF tickDirectionForValue(float value) {
+        PointF a;
+        PointF b;
+        if (value <= 3f) {
+            a = RPM_0;
+            b = RPM_3;
+        } else {
+            a = RPM_3;
+            b = RPM_8;
+        }
+        float dx = b.x - a.x;
+        float dy = b.y - a.y;
+        float len = (float) Math.sqrt(dx * dx + dy * dy);
+        if (len <= 0.0001f) return new PointF(0f, -1f);
+        if (value <= 3f) {
+            // 斜坡段刻度改为与进度条边缘壁平行。
+            return new PointF(dx / len, dy / len);
+        }
+        // 水平段保持竖直刻度。
+        return new PointF(0f, -1f);
+    }
     private PointF normalForValue(float value) {
         PointF a;
         PointF b;

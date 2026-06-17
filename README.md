@@ -1,4 +1,4 @@
-# MikuCarHudReceiver Audi Vector Tach v13
+# 车速HUD显示表 Audi Vector Tach v13
 
 本版本从 v12 备份版分支生成，开始执行“方案 B”：HUD 上半部分完全程序矢量化。
 
@@ -15,7 +15,7 @@
 
 ---
 
-# MikuCarHudReceiver - Audi HUD Clean UI v9
+# 车速HUD显示表 - Audi HUD Clean UI v9
 
 安卓 HUD 接收端，用于接收车机端 MikuCarLauncher 在局域网内广播的 UDP JSON 车辆 Hook 数据。
 
