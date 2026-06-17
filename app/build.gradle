@@ -10,12 +10,46 @@ android {
         applicationId 'com.jlxc.mikucarhudreceiver'
         minSdk 23
         targetSdk 35
-        versionCode 4
-        versionName '0.4.0-audi-oemfont'
+        versionCode 5
+        versionName '0.5.0-audi-ttf-font'
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+
+// HUD 数字字体：构建时自动下载开源硬朗窄体字体到 assets。
+// 项目 zip 中不直接附带字体文件；GitHub Actions / 本地联网构建时会自动打进 APK。
+def hudFontUrl = 'https://github.com/google/fonts/raw/main/ofl/teko/Teko-SemiBold.ttf'
+def hudFontFile = file("$projectDir/src/main/assets/fonts/hud_oem.ttf")
+
+tasks.register('downloadHudFont') {
+    outputs.file(hudFontFile)
+    doLast {
+        if (hudFontFile.exists() && hudFontFile.length() > 1024) {
+            println "HUD font already exists: ${hudFontFile}"
+            return
+        }
+        hudFontFile.parentFile.mkdirs()
+        println "Downloading HUD font: ${hudFontUrl}"
+        try {
+            new URL(hudFontUrl).withInputStream { input ->
+                hudFontFile.withOutputStream { output ->
+                    output << input
+                }
+            }
+            println "HUD font saved: ${hudFontFile}"
+        } catch (Exception e) {
+            logger.warn("HUD font download failed, app will use system fallback font: ${e.message}")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.named('preBuild').configure {
+        dependsOn(tasks.named('downloadHudFont'))
     }
 }

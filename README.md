@@ -121,12 +121,34 @@ private static final PointF RPM_8 = new PointF(1576f, 345f);
 
 ## 后续可以继续加的内容
 
-- 更接近奥迪原厂风格的车速字体
+- 硬朗窄体 TTF 字体细化 / 自定义字体替换
 - 转速条按刻度逐格点亮，而不是整条线点亮
 - 雷达距离条可视化
 - 车门开启图标化
 - 设置页里加入“隐藏底部调试栏”
 - 夜间亮度自动降低
+
+## V5 字体说明
+
+这一版不再用系统 `sans-serif-condensed`，也不再用上一版的代码矢量数字作为主字体。
+
+动态数字会优先加载：
+
+```text
+app/src/main/assets/fonts/hud_oem.ttf
+```
+
+项目 zip 里不直接附带字体文件。GitHub Actions 或本地联网构建时，`app/build.gradle` 会自动下载硬朗窄体字体到这个路径，并打进 APK。
+
+如果你手里有更像奥迪原厂的字体文件，也可以自己把合法可用的 `.ttf` / `.otf` 放到：
+
+```text
+app/src/main/assets/fonts/hud_oem.ttf
+```
+
+文件名必须保持 `hud_oem.ttf`。App 启动后会自动加载。
+
+注意：发光效果已经压低，否则字体再硬也会被光晕糊成圆体。
 
 ## ADB 模拟 HUD 数据
 

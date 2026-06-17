@@ -20,9 +20,8 @@ public class AudiHudView extends View {
     private static final float DESIGN_W = 1672f;
     private static final float DESIGN_H = 941f;
 
-    // 动态数字字体：不使用数码管，改用接近奥迪原厂仪表的硬朗窄体字。
-    // Android 系统内置 sans-serif-condensed 比较接近 DIN / 原厂仪表数字风格，旧安卓也支持。
-    private static final Typeface OEM_NUMBER_TYPEFACE = Typeface.create("sans-serif-condensed", Typeface.BOLD);
+    // 动态数字优先使用 assets/fonts/hud_oem.ttf。
+    // GitHub Actions / 本地联网构建时会自动下载并打进 APK；没有字体文件时才回退系统字体。
     private static final Typeface OEM_LABEL_TYPEFACE = Typeface.create("sans-serif-condensed", Typeface.NORMAL);
     private static final Typeface OEM_STATUS_TYPEFACE = Typeface.create("sans-serif", Typeface.BOLD);
 
@@ -34,6 +33,8 @@ public class AudiHudView extends View {
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
     private final Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint numberPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.SUBPIXEL_TEXT_FLAG | Paint.LINEAR_TEXT_FLAG);
+    private Typeface hardNumberTypeface;
     private final Rect textBounds = new Rect();
     private final RectF bgDst = new RectF();
     private final Path tempPath = new Path();
@@ -53,8 +54,9 @@ public class AudiHudView extends View {
         super(context);
         setBackgroundColor(Color.BLACK);
         setFocusable(true);
-        // 转速进度的发光描边用软件层更稳定，低端机也能跑。
+        // 转速进度和 HUD 发光文字用软件层更稳定，低端机也能跑。
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        hardNumberTypeface = HudFont.getNumberTypeface(context);
         tachBackground = BitmapFactory.decodeResource(getResources(), R.drawable.hud_tach_bg);
     }
 
@@ -230,7 +232,10 @@ public class AudiHudView extends View {
         paint.setTextAlign(Paint.Align.RIGHT);
         paint.setColor(Color.rgb(120, 150, 160));
         String age = lastPacketAtMs <= 0L ? "--" : (now - lastPacketAtMs) + "ms";
-        canvas.drawText("UDP " + listenPort + "  " + age, bgDst.right - bgDst.width() * 0.035f, y, paint);
+        drawHardText(canvas, "UDP " + listenPort + "  " + age,
+                bgDst.right - bgDst.width() * 0.035f, y,
+                bgDst.height() * 0.025f * fs, Paint.Align.RIGHT,
+                Color.rgb(120, 150, 160), 0f, 0.90f, 0.88f);
     }
 
     private void drawSpeed(Canvas canvas, float fs) {
@@ -239,14 +244,9 @@ public class AudiHudView extends View {
         float centerX = bgDst.left + bgDst.width() * 0.525f;
         float baseline = bgDst.top + bgDst.height() * 0.735f;
 
-        paint.reset();
-        paint.setAntiAlias(true);
-        paint.setTypeface(OEM_NUMBER_TYPEFACE);
-        paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTextSize(bgDst.height() * 0.285f * fs);
-        paint.setTextScaleX(0.92f);
-        drawGlowText(canvas, speedText, centerX, baseline, Color.WHITE, bgDst.height() * 0.018f);
-        paint.setTextScaleX(1.0f);
+        drawHardText(canvas, speedText, centerX, baseline,
+                bgDst.height() * 0.305f * fs, Paint.Align.CENTER,
+                Color.WHITE, bgDst.height() * 0.006f, 1.0f, 0.82f);
 
         paint.setTypeface(OEM_LABEL_TYPEFACE);
         paint.setTextSize(bgDst.height() * 0.047f * fs);
@@ -286,7 +286,10 @@ public class AudiHudView extends View {
         paint.setTextSize(bgDst.height() * 0.025f * fs);
         paint.setTextScaleX(0.96f);
         paint.setColor(Color.rgb(125, 155, 165));
-        canvas.drawText("ODO " + odo + " km", bgDst.right - bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.945f, paint);
+        drawHardText(canvas, "ODO " + odo + " km",
+                bgDst.right - bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.945f,
+                bgDst.height() * 0.025f * fs, Paint.Align.RIGHT,
+                Color.rgb(125, 155, 165), 0f, 0.92f, 0.88f);
         paint.setTextScaleX(1.0f);
     }
 
@@ -302,11 +305,9 @@ public class AudiHudView extends View {
         paint.setColor(Color.rgb(110, 185, 205));
         canvas.drawText(label, x, y - bgDst.height() * 0.035f, paint);
 
-        paint.setTypeface(OEM_NUMBER_TYPEFACE);
-        paint.setTextSize(valueSize);
-        paint.setTextScaleX(0.94f);
-        drawGlowText(canvas, value, x, y + bgDst.height() * 0.020f, Color.rgb(235, 255, 255), bgDst.height() * 0.006f);
-        paint.setTextScaleX(1.0f);
+        drawHardText(canvas, value, x, y + bgDst.height() * 0.020f,
+                valueSize, Paint.Align.CENTER,
+                Color.rgb(235, 255, 255), bgDst.height() * 0.003f, 1.0f, 0.88f);
     }
 
     private void drawWarnings(Canvas canvas, float fs) {
@@ -360,7 +361,10 @@ public class AudiHudView extends View {
         String left = String.format(Locale.CHINA,
                 "packets=%d  invalid=%d  age=%s  sender=%s",
                 packetCount, invalidPacketCount, ageText, senderText);
-        canvas.drawText(left, bgDst.left + bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.980f, paint);
+        drawHardText(canvas, left,
+                bgDst.left + bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.980f,
+                bgDst.height() * 0.022f * fs, Paint.Align.LEFT,
+                Color.rgb(85, 110, 118), 0f, 0.85f, 0.82f);
 
         paint.setTextAlign(Paint.Align.RIGHT);
         String right;
@@ -374,7 +378,41 @@ public class AudiHudView extends View {
         } else {
             right = timedOut ? "未收到符合 MikuCarHUD v1 的数据" : statusText;
         }
-        canvas.drawText(right, bgDst.right - bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.980f, paint);
+        drawHardText(canvas, right,
+                bgDst.right - bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.980f,
+                bgDst.height() * 0.022f * fs, Paint.Align.RIGHT,
+                Color.rgb(85, 110, 118), 0f, 0.85f, 0.82f);
+    }
+
+
+    private void drawHardText(Canvas canvas, String text, float x, float baseline, float textSize,
+                              Paint.Align align, int color, float glowRadius,
+                              float alphaScale, float textScaleX) {
+        if (text == null) text = "";
+        alphaScale = clamp(alphaScale, 0f, 1f);
+        int drawColor = Color.argb(Math.round(Color.alpha(color) * alphaScale),
+                Color.red(color), Color.green(color), Color.blue(color));
+
+        numberPaint.reset();
+        numberPaint.setAntiAlias(true);
+        numberPaint.setDither(true);
+        numberPaint.setSubpixelText(true);
+        numberPaint.setLinearText(true);
+        numberPaint.setStyle(Paint.Style.FILL);
+        numberPaint.setTypeface(hardNumberTypeface == null ? HudFont.getNumberTypeface(getContext()) : hardNumberTypeface);
+        numberPaint.setTextAlign(align);
+        numberPaint.setTextSize(textSize);
+        numberPaint.setTextScaleX(textScaleX);
+        numberPaint.setColor(drawColor);
+
+        // 这里刻意把发光半径压低：发光太重会把硬朗字体糊成圆体。
+        if (glowRadius > 0f) {
+            numberPaint.setShadowLayer(glowRadius, 0f, 0f, drawColor);
+            canvas.drawText(text, x, baseline, numberPaint);
+            numberPaint.clearShadowLayer();
+        }
+        canvas.drawText(text, x, baseline, numberPaint);
+        numberPaint.setTextScaleX(1.0f);
     }
 
     private void drawGlowText(Canvas canvas, String text, float x, float y, int color, float glowRadius) {
