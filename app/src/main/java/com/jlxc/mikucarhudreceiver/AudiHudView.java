@@ -10,6 +10,7 @@ import android.graphics.Path;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.view.View;
 
 import java.util.Locale;
@@ -18,6 +19,12 @@ public class AudiHudView extends View {
     private static final long DATA_TIMEOUT_MS = 2000L;
     private static final float DESIGN_W = 1672f;
     private static final float DESIGN_H = 941f;
+
+    // 动态数字字体：不使用数码管，改用接近奥迪原厂仪表的硬朗窄体字。
+    // Android 系统内置 sans-serif-condensed 比较接近 DIN / 原厂仪表数字风格，旧安卓也支持。
+    private static final Typeface OEM_NUMBER_TYPEFACE = Typeface.create("sans-serif-condensed", Typeface.BOLD);
+    private static final Typeface OEM_LABEL_TYPEFACE = Typeface.create("sans-serif-condensed", Typeface.NORMAL);
+    private static final Typeface OEM_STATUS_TYPEFACE = Typeface.create("sans-serif", Typeface.BOLD);
 
     // 这三个点对应背景图里的厂字型转速条：0 -> 3 为斜坡，3 -> 8 为水平段。
     // 后续如果你换了一张背景，只需要微调这里的原图坐标。
@@ -213,12 +220,12 @@ public class AudiHudView extends View {
 
         paint.reset();
         paint.setAntiAlias(true);
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD));
+        paint.setTypeface(OEM_STATUS_TYPEFACE);
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setTextSize(bgDst.height() * 0.040f * fs);
         drawGlowText(canvas, status, bgDst.centerX(), y, color, bgDst.height() * 0.010f);
 
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL));
+        paint.setTypeface(OEM_LABEL_TYPEFACE);
         paint.setTextSize(bgDst.height() * 0.025f * fs);
         paint.setTextAlign(Paint.Align.RIGHT);
         paint.setColor(Color.rgb(120, 150, 160));
@@ -234,14 +241,18 @@ public class AudiHudView extends View {
 
         paint.reset();
         paint.setAntiAlias(true);
-        paint.setTypeface(android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD));
+        paint.setTypeface(OEM_NUMBER_TYPEFACE);
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setTextSize(bgDst.height() * 0.285f * fs);
+        paint.setTextScaleX(0.92f);
         drawGlowText(canvas, speedText, centerX, baseline, Color.WHITE, bgDst.height() * 0.018f);
+        paint.setTextScaleX(1.0f);
 
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD));
+        paint.setTypeface(OEM_LABEL_TYPEFACE);
         paint.setTextSize(bgDst.height() * 0.047f * fs);
+        paint.setTextScaleX(0.96f);
         drawGlowText(canvas, "km/h", centerX, baseline + bgDst.height() * 0.078f, Color.rgb(135, 230, 255), bgDst.height() * 0.008f);
+        paint.setTextScaleX(1.0f);
     }
 
     private void drawInfoBlocks(Canvas canvas, float fs) {
@@ -270,11 +281,13 @@ public class AudiHudView extends View {
 
         paint.reset();
         paint.setAntiAlias(true);
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL));
+        paint.setTypeface(OEM_LABEL_TYPEFACE);
         paint.setTextAlign(Paint.Align.RIGHT);
         paint.setTextSize(bgDst.height() * 0.025f * fs);
+        paint.setTextScaleX(0.96f);
         paint.setColor(Color.rgb(125, 155, 165));
         canvas.drawText("ODO " + odo + " km", bgDst.right - bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.945f, paint);
+        paint.setTextScaleX(1.0f);
     }
 
     private void drawInfoBlock(Canvas canvas, String label, String value, float x, float y, float fs) {
@@ -284,14 +297,16 @@ public class AudiHudView extends View {
         paint.reset();
         paint.setAntiAlias(true);
         paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL));
+        paint.setTypeface(OEM_LABEL_TYPEFACE);
         paint.setTextSize(labelSize);
         paint.setColor(Color.rgb(110, 185, 205));
         canvas.drawText(label, x, y - bgDst.height() * 0.035f, paint);
 
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD));
+        paint.setTypeface(OEM_NUMBER_TYPEFACE);
         paint.setTextSize(valueSize);
+        paint.setTextScaleX(0.94f);
         drawGlowText(canvas, value, x, y + bgDst.height() * 0.020f, Color.rgb(235, 255, 255), bgDst.height() * 0.006f);
+        paint.setTextScaleX(1.0f);
     }
 
     private void drawWarnings(Canvas canvas, float fs) {
@@ -303,7 +318,7 @@ public class AudiHudView extends View {
         paint.reset();
         paint.setAntiAlias(true);
         paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD));
+        paint.setTypeface(OEM_STATUS_TYPEFACE);
         paint.setTextSize(bgDst.height() * 0.045f * fs);
         int color = hasWarning ? Color.rgb(255, 80, 55) : Color.rgb(105, 255, 185);
         drawGlowText(canvas, warning, bgDst.centerX(), y, color, bgDst.height() * 0.008f);
@@ -320,7 +335,7 @@ public class AudiHudView extends View {
         paint.reset();
         paint.setAntiAlias(true);
         paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD));
+        paint.setTypeface(OEM_STATUS_TYPEFACE);
         paint.setTextSize(bgDst.height() * 0.105f * fs);
         int color = data.hazard ? Color.rgb(255, 210, 60) : Color.rgb(70, 255, 120);
 
@@ -335,7 +350,7 @@ public class AudiHudView extends View {
     private void drawBottomDebug(Canvas canvas, long now, boolean timedOut, float fs) {
         paint.reset();
         paint.setAntiAlias(true);
-        paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL));
+        paint.setTypeface(OEM_LABEL_TYPEFACE);
         paint.setTextAlign(Paint.Align.LEFT);
         paint.setTextSize(bgDst.height() * 0.022f * fs);
         paint.setColor(Color.rgb(85, 110, 118));

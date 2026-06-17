@@ -247,3 +247,9 @@ adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez driverSeat
 - 完整 JSON：`json`
 
 如果只传某几个字段，其他字段会沿用上一次数据，适合一点点微调 UI。
+
+## Audi UI 字体说明
+
+当前 Audi HUD 主界面的动态数字不使用数码管字体，统一使用 Android 系统内置 `sans-serif-condensed` 加粗窄体，视觉上更接近奥迪原厂仪表常见的硬朗数字风格，并且兼容 Android 6/7 这类旧手机。
+
+背景图 `hud_tach_bg.png` 内自带的 0-8 转速刻度数字保持不变，不在代码中重绘。
