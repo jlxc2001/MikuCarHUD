@@ -13,6 +13,8 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.view.View;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 
 public class AudiHudView extends View {
@@ -38,6 +40,7 @@ public class AudiHudView extends View {
     private final Rect textBounds = new Rect();
     private final RectF bgDst = new RectF();
     private final Path tempPath = new Path();
+    private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.CHINA);
 
     private final Bitmap tachBackground;
 
@@ -49,6 +52,7 @@ public class AudiHudView extends View {
     private int invalidPacketCount = 0;
     private int fontScale = 100;
     private int listenPort = AppPrefs.DEFAULT_PORT;
+    private boolean debugMode = AppPrefs.DEFAULT_DEBUG_MODE;
 
     public AudiHudView(Context context) {
         super(context);
@@ -88,6 +92,11 @@ public class AudiHudView extends View {
         invalidate();
     }
 
+    public void setDebugMode(boolean debugMode) {
+        this.debugMode = debugMode;
+        invalidate();
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -103,12 +112,17 @@ public class AudiHudView extends View {
         computeBackgroundRect(w, h);
         drawBackground(canvas);
         drawRpmProgress(canvas);
+        drawTime(canvas, fs);
         drawTurnSignals(canvas, now, timedOut, fs);
-        drawStatus(canvas, now, timedOut, fs);
+        if (debugMode) {
+            drawStatus(canvas, now, timedOut, fs);
+        }
         drawSpeed(canvas, fs);
         drawInfoBlocks(canvas, fs);
         drawWarnings(canvas, fs);
-        drawBottomDebug(canvas, now, timedOut, fs);
+        if (debugMode) {
+            drawBottomDebug(canvas, now, timedOut, fs);
+        }
     }
 
     private void computeBackgroundRect(int viewW, int viewH) {
@@ -215,6 +229,15 @@ public class AudiHudView extends View {
         paint.clearShadowLayer();
     }
 
+    private void drawTime(Canvas canvas, float fs) {
+        String time = timeFormat.format(new Date());
+        drawHardText(canvas, time,
+                bgDst.left + bgDst.width() * 0.035f,
+                bgDst.top + bgDst.height() * 0.105f,
+                bgDst.height() * 0.043f * fs, Paint.Align.LEFT,
+                Color.rgb(235, 255, 255), bgDst.height() * 0.004f, 0.92f, 0.88f);
+    }
+
     private void drawStatus(Canvas canvas, long now, boolean timedOut, float fs) {
         String status = timedOut ? "等待车机数据" : "MikuCarLauncher 已连接";
         int color = timedOut ? Color.rgb(255, 210, 80) : Color.rgb(90, 255, 190);
@@ -258,7 +281,6 @@ public class AudiHudView extends View {
     private void drawInfoBlocks(Canvas canvas, float fs) {
         int rpm = data == null ? 0 : data.rpm;
         int range = data == null ? 0 : data.rangeKm;
-        int fuel = data == null ? 0 : data.fuelLevel;
         long odo = data == null ? 0L : data.totalMileageKm;
 
         drawInfoBlock(canvas,
@@ -270,27 +292,15 @@ public class AudiHudView extends View {
         drawInfoBlock(canvas,
                 "RANGE", range + " km",
                 bgDst.left + bgDst.width() * 0.775f,
-                bgDst.top + bgDst.height() * 0.775f,
+                bgDst.top + bgDst.height() * 0.820f,
                 fs);
 
-        drawInfoBlock(canvas,
-                "FUEL", fuel + "%",
-                bgDst.left + bgDst.width() * 0.775f,
-                bgDst.top + bgDst.height() * 0.870f,
-                fs);
-
-        paint.reset();
-        paint.setAntiAlias(true);
-        paint.setTypeface(OEM_LABEL_TYPEFACE);
-        paint.setTextAlign(Paint.Align.RIGHT);
-        paint.setTextSize(bgDst.height() * 0.025f * fs);
-        paint.setTextScaleX(0.96f);
-        paint.setColor(Color.rgb(125, 155, 165));
-        drawHardText(canvas, "ODO " + odo + " km",
-                bgDst.right - bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.945f,
-                bgDst.height() * 0.025f * fs, Paint.Align.RIGHT,
-                Color.rgb(125, 155, 165), 0f, 0.92f, 0.88f);
-        paint.setTextScaleX(1.0f);
+        if (debugMode) {
+            drawHardText(canvas, "ODO " + odo + " km",
+                    bgDst.right - bgDst.width() * 0.035f, bgDst.top + bgDst.height() * 0.945f,
+                    bgDst.height() * 0.025f * fs, Paint.Align.RIGHT,
+                    Color.rgb(125, 155, 165), 0f, 0.92f, 0.88f);
+        }
     }
 
     private void drawInfoBlock(Canvas canvas, String label, String value, float x, float y, float fs) {
@@ -312,8 +322,9 @@ public class AudiHudView extends View {
 
     private void drawWarnings(Canvas canvas, float fs) {
         if (data == null) return;
-        String warning = data.buildWarningText();
         boolean hasWarning = data.hasAnyWarning();
+        if (!debugMode && !hasWarning) return;
+        String warning = data.buildWarningText();
         float y = bgDst.top + bgDst.height() * 0.925f;
 
         paint.reset();

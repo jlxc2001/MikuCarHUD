@@ -1,241 +1,31 @@
-# MikuCarHudReceiver
+# MikuCarHudReceiver - Audi HUD Clean UI v9
 
-安卓 HUD 接收端，用于接收车机端 `MikuCarLauncher` 在局域网内广播的车辆 Hook 数据。
+安卓 HUD 接收端，用于接收车机端 MikuCarLauncher 在局域网内广播的 UDP JSON 车辆 Hook 数据。
 
-当前版本已经从纯调试界面升级为 **奥迪厂字型 HUD UI V1**：使用用户提供的厂字型转速表图片作为背景，并在其上叠加实时车辆数据。
+## v9 更新
 
-## 已实现
+- 左上角新增时间显示，格式 `HH:mm`。
+- 删除 RANGE 下方的 FUEL 百分比显示。
+- 设置页新增“调试模式”开关。
+- 调试模式开启：显示 UDP 状态、等待车机数据、ODO、底部 packets/sender/seq/debug 等调试信息。
+- 调试模式关闭：HUD 只保留核心驾驶显示：背景、厂字型转速进度条、车速、左右转向、开门/后备箱/机盖警告、RPM、剩余续航里程、时间。
+- 继续保留 ADB 模拟数据接口。
+- 字体渲染为混合字体：数字使用 `assets/fonts/hud_oem.ttf`，中文/英文/单位/符号使用原来的 HUD 字体。
 
-- 横屏全屏运行
-- 默认监听 UDP `36970`
-- 接收 UTF-8 JSON
-- 校验协议字段：
-  - `protocol = "MikuCarHUD"`
-  - `version = 1`
-  - `source = "MikuCarLauncher"`
-- 解析并显示：
-  - `speedKmh`
-  - `rpm`
-  - `rangeKm`
-  - `fuelLevel`
-  - `totalMileageKm`
-  - `driverSeatbelt` / `passengerSeatbelt`
-  - `doors.frontLeft / frontRight / rearLeft / rearRight / trunk / hood`
-  - `leftTurn / rightTurn / hazard / highBeam`
-  - `frontRadar / rearRadar`
-  - `dataSource / debugText`
-- 奥迪厂字型转速表背景
-- 根据 `rpm` 在厂字型路径上绘制动态转速进度
-  - 0-3：左侧斜坡段
-  - 3-8：顶部横向段
-  - 6500rpm 之后进入红色进度
-- 中央大号显示车速 `speedKmh`
-- 显示 RPM、续航、油量、总里程
-- 左右转向闪烁箭头
-- 双闪时左右箭头同时闪烁
-- 车门、后备箱、机盖、安全带、远光灯警告文字
-- 超过 2 秒未收到数据时显示“等待车机数据”，保留最后一次车速
-- 长按主界面进入设置页
-- 设置页支持：
-  - 修改 UDP 监听端口
-  - 开关 HUD 水平镜像
-  - 调节字体大小
-  - 调节屏幕亮度
-- GitHub Actions 自动编译 debug APK
+## 字体文件
 
-## 项目结构
-
-```text
-MikuCarHudReceiver/
-├─ app/
-│  ├─ build.gradle
-│  └─ src/main/
-│     ├─ AndroidManifest.xml
-│     ├─ java/com/jlxc/mikucarhudreceiver/
-│     │  ├─ MainActivity.java
-│     │  ├─ SettingsActivity.java
-│     │  ├─ HudUdpReceiver.java
-│     │  ├─ AudiHudView.java
-│     │  ├─ HudDebugView.java
-│     │  ├─ VehicleData.java
-│     │  └─ AppPrefs.java
-│     └─ res/
-│        └─ drawable-nodpi/hud_tach_bg.png
-├─ .github/workflows/android.yml
-├─ docs/sample_packet.json
-└─ tools/send_test_packet.py
-```
-
-## 本地测试 UDP 接收
-
-1. 手机和电脑连接同一个热点或同一个局域网。
-2. 手机安装 APK 并打开 `Miku HUD接收端`。
-3. 确认主界面显示正在监听 UDP 端口。
-4. 在电脑上执行：
-
-```bash
-python tools/send_test_packet.py 手机IP 36970
-```
-
-例如：
-
-```bash
-python tools/send_test_packet.py 192.168.100.127 36970
-```
-
-广播测试：
-
-```bash
-python tools/send_test_packet.py 255.255.255.255 36970 --broadcast
-```
-
-如果手机画面中的 `packets` 增长，并且车速/RPM 在变化，说明 UDP 接收链路正常。
-
-## GitHub Actions 编译
-
-把整个项目上传到 GitHub 后，进入仓库的 `Actions` 页面，手动运行 `Android APK Build`。
-
-编译完成后在 Artifacts 里下载：
-
-```text
-MikuCarHudReceiver-debug-apk
-```
-
-## 调整厂字型转速条位置
-
-动态转速进度的路径点在：
-
-```text
-app/src/main/java/com/jlxc/mikucarhudreceiver/AudiHudView.java
-```
-
-修改这三个坐标即可：
-
-```java
-private static final PointF RPM_0 = new PointF(150f, 672f);
-private static final PointF RPM_3 = new PointF(488f, 344f);
-private static final PointF RPM_8 = new PointF(1576f, 345f);
-```
-
-坐标基于背景图原始尺寸 `1672 × 941`。
-
-## 后续可以继续加的内容
-
-- 硬朗窄体 TTF 字体细化 / 自定义字体替换
-- 转速条按刻度逐格点亮，而不是整条线点亮
-- 雷达距离条可视化
-- 车门开启图标化
-- 设置页里加入“隐藏底部调试栏”
-- 夜间亮度自动降低
-
-## V5 字体说明
-
-这一版不再用系统 `sans-serif-condensed`，也不再用上一版的代码矢量数字作为主字体。
-
-动态数字会优先加载：
+请将自备数字字体放到：
 
 ```text
 app/src/main/assets/fonts/hud_oem.ttf
 ```
 
-项目 zip 里不直接附带字体文件。GitHub Actions 或本地联网构建时，`app/build.gradle` 会自动下载硬朗窄体字体到这个路径，并打进 APK。
+如果没有放入该文件，App 会回退到系统字体。
 
-如果你手里有更像奥迪原厂的字体文件，也可以自己把合法可用的 `.ttf` / `.otf` 放到：
-
-```text
-app/src/main/assets/fonts/hud_oem.ttf
-```
-
-文件名必须保持 `hud_oem.ttf`。App 启动后会自动加载。
-
-注意：发光效果已经压低，否则字体再硬也会被光晕糊成圆体。
-
-## ADB 模拟 HUD 数据
-
-本版本预留了 ADB 调试模拟接口，方便在 UI 阶段不依赖车机 UDP 广播也能直接改车速、转速、油量、车门、转向灯等数据。
-
-调试 Action：
-
-```text
-com.jlxc.mikucarhudreceiver.DEBUG_DATA
-```
-
-### 方式一：直接启动/拉起 App 并写入模拟数据
+## ADB 模拟示例
 
 ```bash
-adb shell am start -n com.jlxc.mikucarhudreceiver/.MainActivity -a com.jlxc.mikucarhudreceiver.DEBUG_DATA \
-  --ei speedKmh 68 \
-  --ei rpm 3200 \
-  --ei rangeKm 540 \
-  --ei fuelLevel 72 \
-  --el totalMileageKm 123456 \
-  --ez leftTurn false \
-  --ez rightTurn false \
-  --ez hazard false \
-  --ez highBeam false \
-  --ez driverSeatbelt true \
-  --ez passengerSeatbelt true \
-  --ez frontLeft false \
-  --ez frontRight false \
-  --ez rearLeft false \
-  --ez rearRight false \
-  --ez trunk false \
-  --ez hood false \
-  --eia frontRadar 80,120,255,255 \
-  --eia rearRadar 60,90,255,255 \
-  --es debugText "ADB mock"
-```
-
-Windows CMD 可以直接运行：
-
-```bat
-工具目录：tools\adb_mock_hud.bat
-```
-
-macOS / Linux 可以运行：
-
-```bash
-bash tools/adb_mock_hud.sh
-```
-
-### 方式二：App 已经打开时，用 broadcast 直接刷新数据
-
-```bash
-adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ei rpm 5000 --ei speedKmh 88 --ei fuelLevel 60
-```
-
-这种方式不会重启界面，更适合连续调 UI。
-
-### 常用模拟命令
-
-模拟 3000 转、60km/h：
-
-```bash
-adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ei speedKmh 60 --ei rpm 3000
-```
-
-模拟红区转速：
-
-```bash
-adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ei rpm 7000
-```
-
-模拟左转向：
-
-```bash
-adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez leftTurn true --ez rightTurn false --ez hazard false
-```
-
-关闭转向灯：
-
-```bash
-adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez leftTurn false --ez rightTurn false --ez hazard false
-```
-
-模拟双闪：
-
-```bash
-adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez hazard true
+adb shell am start -n com.jlxc.mikucarhudreceiver/.MainActivity -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ei speedKmh 60 --ei rpm 3000 --ei rangeKm 540
 ```
 
 模拟左前门打开：
@@ -244,50 +34,18 @@ adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez hazard tru
 adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez frontLeft true
 ```
 
-关闭所有车门/后备箱/机盖警告：
+模拟双闪：
 
 ```bash
-adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez frontLeft false --ez frontRight false --ez rearLeft false --ez rearRight false --ez trunk false --ez hood false
+adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez hazard true
 ```
 
-模拟主驾未系安全带：
+## 构建
+
+上传到 GitHub 后，Actions 会自动执行：
 
 ```bash
-adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez driverSeatbelt false
+./gradlew assembleDebug
 ```
 
-### 支持的 ADB extra 字段
-
-- 整数：`speedKmh`、`rpm`、`rangeKm`、`fuelLevel`
-- 长整数：`totalMileageKm`、`seq`
-- 布尔：`driverSeatbelt`、`passengerSeatbelt`、`leftTurn`、`rightTurn`、`highBeam`、`hazard`
-- 车门：`frontLeft`、`frontRight`、`rearLeft`、`rearRight`、`trunk`、`hood`
-- 车门兼容 key：`doors.frontLeft`、`doors.frontRight`、`doors.rearLeft`、`doors.rearRight`、`doors.trunk`、`doors.hood`
-- 整数数组：`frontRadar`、`rearRadar`
-- 字符串数组：`rawBaseInfo`
-- 字符串：`dataSource`、`debugText`
-- 完整 JSON：`json`
-
-如果只传某几个字段，其他字段会沿用上一次数据，适合一点点微调 UI。
-
-## Audi UI 字体说明
-
-当前 Audi HUD 主界面的动态数字不使用数码管字体，统一使用 Android 系统内置 `sans-serif-condensed` 加粗窄体，视觉上更接近奥迪原厂仪表常见的硬朗数字风格，并且兼容 Android 6/7 这类旧手机。
-
-背景图 `hud_tach_bg.png` 内自带的 0-8 转速刻度数字保持不变，不在代码中重绘。
-
-## v6 字体说明
-
-本版本已将用户提供的 HUD 数字字体直接集成到 APK assets 中：
-
-```text
-app/src/main/assets/fonts/hud_oem.ttf
-```
-
-App 会通过 `HudFont` 优先加载该字体；加载失败时才回退到系统字体。GitHub Actions 不再联网下载字体。
-
-
-## v8 mixed font
-- 数字 0-9 使用 assets/fonts/hud_oem.ttf。
-- 英文、中文、单位与符号继续使用原 HUD 字体。
-- 厂字型转速进度条保留 v7 对齐修正。
+最低支持：Android 6.0 / API 23。

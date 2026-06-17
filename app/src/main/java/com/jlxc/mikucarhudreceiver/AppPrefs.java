@@ -9,11 +9,13 @@ public final class AppPrefs {
     public static final String KEY_MIRROR = "hud_mirror";
     public static final String KEY_FONT_SCALE = "font_scale";
     public static final String KEY_BRIGHTNESS = "brightness";
+    public static final String KEY_DEBUG_MODE = "debug_mode";
 
     public static final int DEFAULT_PORT = 36970;
     public static final boolean DEFAULT_MIRROR = false;
     public static final int DEFAULT_FONT_SCALE = 100;
     public static final int DEFAULT_BRIGHTNESS = 100;
+    public static final boolean DEFAULT_DEBUG_MODE = true;
 
     private AppPrefs() {
     }
@@ -39,6 +41,10 @@ public final class AppPrefs {
         if (scale < 60) return 60;
         if (scale > 180) return 180;
         return scale;
+    }
+
+    public static boolean getDebugMode(Context context) {
+        return get(context).getBoolean(KEY_DEBUG_MODE, DEFAULT_DEBUG_MODE);
     }
 
     public static int getBrightness(Context context) {

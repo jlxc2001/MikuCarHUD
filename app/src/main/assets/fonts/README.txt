@@ -1,5 +1,5 @@
-Put your font file here and rename it to:
+请把用户自备的数字字体文件放到这里，并命名为：
 
 hud_oem.ttf
 
-Only digits 0-9 will use this font. English, Chinese, units and symbols use the original HUD font.
+程序规则：数字 0-9 使用 hud_oem.ttf；中文、英文、单位和符号继续使用系统 HUD 字体。

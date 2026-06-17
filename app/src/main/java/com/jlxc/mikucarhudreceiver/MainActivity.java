@@ -134,11 +134,13 @@ public class MainActivity extends Activity implements HudUdpReceiver.Listener {
         boolean mirror = AppPrefs.getMirror(this);
         int fontScale = AppPrefs.getFontScale(this);
         int brightness = AppPrefs.getBrightness(this);
+        boolean debugMode = AppPrefs.getDebugMode(this);
 
         if (hudView != null) {
             hudView.setScaleX(mirror ? -1f : 1f);
             hudView.setFontScale(fontScale);
             hudView.setListenPort(listenPort);
+            hudView.setDebugMode(debugMode);
         }
         applyBrightness(brightness);
     }

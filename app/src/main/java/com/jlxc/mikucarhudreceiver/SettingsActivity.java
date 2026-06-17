@@ -20,6 +20,7 @@ import android.widget.Toast;
 public class SettingsActivity extends Activity {
     private EditText portEdit;
     private CheckBox mirrorCheck;
+    private CheckBox debugModeCheck;
     private SeekBar fontSeek;
     private SeekBar brightnessSeek;
     private TextView fontValue;
@@ -85,6 +86,13 @@ public class SettingsActivity extends Activity {
         mirrorCheck.setPadding(0, dp(16), 0, dp(16));
         root.addView(mirrorCheck);
 
+        debugModeCheck = new CheckBox(this);
+        debugModeCheck.setText("调试模式：显示 UDP 状态、里程、数据源、底部调试栏");
+        debugModeCheck.setTextColor(0xffffffff);
+        debugModeCheck.setTextSize(18);
+        debugModeCheck.setPadding(0, dp(4), 0, dp(16));
+        root.addView(debugModeCheck);
+
         fontValue = makeText("字体大小", 16, true);
         root.addView(fontValue);
         fontSeek = new SeekBar(this);
@@ -147,9 +155,11 @@ public class SettingsActivity extends Activity {
         int font = AppPrefs.getFontScale(this);
         int brightness = AppPrefs.getBrightness(this);
         boolean mirror = AppPrefs.getMirror(this);
+        boolean debugMode = AppPrefs.getDebugMode(this);
 
         portEdit.setText(String.valueOf(port));
         mirrorCheck.setChecked(mirror);
+        debugModeCheck.setChecked(debugMode);
         fontSeek.setProgress(font - 60);
         brightnessSeek.setProgress(brightness - 10);
         fontValue.setText("字体大小：" + font + "%");
@@ -160,6 +170,7 @@ public class SettingsActivity extends Activity {
     private void resetDefaults() {
         portEdit.setText(String.valueOf(AppPrefs.DEFAULT_PORT));
         mirrorCheck.setChecked(AppPrefs.DEFAULT_MIRROR);
+        debugModeCheck.setChecked(AppPrefs.DEFAULT_DEBUG_MODE);
         fontSeek.setProgress(AppPrefs.DEFAULT_FONT_SCALE - 60);
         brightnessSeek.setProgress(AppPrefs.DEFAULT_BRIGHTNESS - 10);
         Toast.makeText(this, "已恢复默认值，点保存生效", Toast.LENGTH_SHORT).show();
@@ -176,6 +187,7 @@ public class SettingsActivity extends Activity {
         SharedPreferences.Editor editor = AppPrefs.get(this).edit();
         editor.putInt(AppPrefs.KEY_PORT, port);
         editor.putBoolean(AppPrefs.KEY_MIRROR, mirrorCheck.isChecked());
+        editor.putBoolean(AppPrefs.KEY_DEBUG_MODE, debugModeCheck.isChecked());
         editor.putInt(AppPrefs.KEY_FONT_SCALE, font);
         editor.putInt(AppPrefs.KEY_BRIGHTNESS, brightness);
         editor.apply();
