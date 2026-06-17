@@ -31,6 +31,11 @@ public class AudiHudView extends View {
     private static final PointF RPM_3 = new PointF(500f, 345f);
     private static final PointF RPM_8 = new PointF(1575f, 345f);
     private static final float RED_ZONE_START = 5.5f;
+    private static final PointF FRAME_BOTTOM_LEFT = new PointF(75f, 700f);
+    private static final PointF FRAME_BOTTOM_KNEE_START = new PointF(155f, 700f);
+    private static final PointF FRAME_TOP_LEFT = new PointF(75f, 625f);
+    private static final PointF FRAME_TOP_KNEE = new PointF(460f, 258f);
+    private static final PointF FRAME_TOP_RIGHT = new PointF(1605f, 258f);
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint numberPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.SUBPIXEL_TEXT_FLAG | Paint.LINEAR_TEXT_FLAG);
@@ -298,58 +303,69 @@ public class AudiHudView extends View {
         float rpmValue = clamp(data.rpm / 1000f, 0f, 8f);
         if (rpmValue <= 0.01f) return;
 
+        boolean flashZone = rpmValue >= RED_ZONE_START;
+        boolean flashOn = !flashZone || ((System.currentTimeMillis() / 140L) % 2L == 0L);
+        if (flashZone) {
+            // 硬闪烁：超 5500 转后持续请求重绘，不做渐入渐出。
+            postInvalidateDelayed(80L);
+        }
+        if (!flashOn) {
+            return;
+        }
+
         float s = scale();
-        float baseStroke = Math.max(7f, 12f * s);
-        float glowStroke = Math.max(18f, 34f * s);
-
-        // 战斗风格尝试：整个当前转速区间统一红色填充，不再区分青色低转与红区。
-        drawProgressRange(canvas, 0f, rpmValue,
-                Color.argb(150, 255, 0, 0), glowStroke, true);
-        drawProgressRange(canvas, 0f, rpmValue,
-                Color.rgb(255, 28, 28), baseStroke, false);
-
-        PointF end = dp(pointForValue(rpmValue));
-        paint.reset();
-        paint.setAntiAlias(true);
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.argb(170, 255, 0, 0));
-        paint.setShadowLayer(14f * s, 0f, 0f, paint.getColor());
-        canvas.drawCircle(end.x, end.y, 18f * s, paint);
-        paint.clearShadowLayer();
-        paint.setColor(Color.rgb(255, 235, 235));
-        canvas.drawCircle(end.x, end.y, 7f * s, paint);
-    }
-
-    private void drawProgressRange(Canvas canvas, float startValue, float endValue,
-                                   int color, float strokeWidth, boolean glow) {
-        startValue = clamp(startValue, 0f, 8f);
-        endValue = clamp(endValue, 0f, 8f);
-        if (endValue <= startValue) return;
-
         paint.reset();
         paint.setAntiAlias(true);
         paint.setDither(true);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeJoin(Paint.Join.MITER);
-        paint.setStrokeMiter(10f);
-        paint.setStrokeWidth(strokeWidth);
-        paint.setColor(color);
-        if (glow) {
-            paint.setShadowLayer(strokeWidth * 0.6f, 0f, 0f, color);
-        }
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.argb(235, 255, 18, 18));
+        paint.setShadowLayer(10f * s, 0f, 0f, Color.argb(145, 255, 0, 0));
 
-        tempPath.reset();
-        PointF start = dp(pointForValue(startValue));
-        tempPath.moveTo(start.x, start.y);
-        if (startValue < 3f && endValue > 3f) {
-            PointF corner = dp(RPM_3);
-            tempPath.lineTo(corner.x, corner.y);
-        }
-        PointF end = dp(pointForValue(endValue));
-        tempPath.lineTo(end.x, end.y);
-        canvas.drawPath(tempPath, paint);
+        Path fill = buildProgressFillPath(rpmValue);
+        canvas.drawPath(fill, paint);
         paint.clearShadowLayer();
+    }
+
+    private Path buildProgressFillPath(float value) {
+        value = clamp(value, 0f, 8f);
+        Path path = new Path();
+
+        PointF p1 = dp(FRAME_BOTTOM_LEFT);
+        PointF p2 = dp(FRAME_BOTTOM_KNEE_START);
+        PointF r0 = dp(RPM_0);
+        PointF r3 = dp(RPM_3);
+        PointF topLeft = dp(FRAME_TOP_LEFT);
+        PointF topKnee = dp(FRAME_TOP_KNEE);
+
+        path.moveTo(p1.x, p1.y);
+        path.lineTo(p2.x, p2.y);
+        path.lineTo(r0.x, r0.y);
+
+        if (value <= 3f) {
+            PointF lowerEnd = dp(pointForValue(value));
+            PointF upperEnd = dp(upperPointForValue(value));
+            path.lineTo(lowerEnd.x, lowerEnd.y);
+            path.lineTo(upperEnd.x, upperEnd.y);
+            path.lineTo(topLeft.x, topLeft.y);
+        } else {
+            PointF lowerEnd = dp(pointForValue(value));
+            PointF upperEnd = dp(upperPointForValue(value));
+            path.lineTo(r3.x, r3.y);
+            path.lineTo(lowerEnd.x, lowerEnd.y);
+            path.lineTo(upperEnd.x, upperEnd.y);
+            path.lineTo(topKnee.x, topKnee.y);
+            path.lineTo(topLeft.x, topLeft.y);
+        }
+        path.close();
+        return path;
+    }
+
+    private PointF upperPointForValue(float value) {
+        value = clamp(value, 0f, 8f);
+        if (value <= 3f) {
+            return lerpPoint(FRAME_TOP_LEFT, FRAME_TOP_KNEE, value / 3f);
+        }
+        return lerpPoint(FRAME_TOP_KNEE, FRAME_TOP_RIGHT, (value - 3f) / 5f);
     }
 
     private void drawTime(Canvas canvas, float fs) {
