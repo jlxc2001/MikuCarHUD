@@ -204,7 +204,7 @@ public class AudiHudView extends View {
         drawHardText(canvas, "x1000 r/min",
                 bgDst.left + bgDst.width() * 0.128f,
                 bgDst.top + bgDst.height() * 0.740f,
-                bgDst.height() * 0.035f * fs, Paint.Align.LEFT,
+                bgDst.height() * 0.030f * fs, Paint.Align.LEFT,
                 Color.rgb(235, 245, 250), bgDst.height() * 0.0025f, 0.94f, 0.92f);
     }
 
@@ -234,7 +234,7 @@ public class AudiHudView extends View {
             PointF screen = dp(pos);
             int color = i >= 7 ? Color.rgb(255, 20, 20) : Color.rgb(245, 248, 250);
             drawHardText(canvas, String.valueOf(i), screen.x, screen.y,
-                    bgDst.height() * 0.052f * fs, Paint.Align.CENTER,
+                    bgDst.height() * 0.043f * fs, Paint.Align.CENTER,
                     color, bgDst.height() * 0.0025f, 0.96f, 0.88f);
         }
     }
