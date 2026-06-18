@@ -565,9 +565,9 @@ public class AudiHudView extends View {
         paint.setAntiAlias(true);
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setTypeface(OEM_STATUS_TYPEFACE);
-        paint.setTextSize(bgDst.height() * 0.045f * fs);
+        paint.setTextSize(bgDst.height() * 0.065f * fs);
         int color = hasWarning ? Color.rgb(255, 80, 55) : Color.rgb(105, 255, 185);
-        drawGlowText(canvas, warning, bgDst.centerX(), y, color, bgDst.height() * 0.008f);
+        drawGlowText(canvas, warning, bgDst.centerX(), y, color, bgDst.height() * 0.011f);
     }
 
     private void drawTurnSignals(Canvas canvas, long now, float fs) {

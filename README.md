@@ -66,3 +66,19 @@ adb shell am broadcast -a com.jlxc.mikucarhudreceiver.DEBUG_DATA --ez hazard tru
 ```
 
 最低支持：Android 6.0 / API 23。
+
+## v29 Launcher / 桌面模式
+
+本版本已在 `AndroidManifest.xml` 中为 `MainActivity` 增加：
+
+- `android.intent.category.HOME`
+- `android.intent.category.DEFAULT`
+
+因此系统可以把本 App 作为默认桌面 / Launcher 候选项。
+
+设置方法：
+1. 打开 App，长按进入设置页。
+2. 点击“设置为默认桌面 / Launcher”。
+3. 在系统默认桌面设置中选择“车速HUD显示表”。
+
+注意：Android 不允许普通 App 直接强制把自己设为默认桌面，必须由用户在系统界面里确认。

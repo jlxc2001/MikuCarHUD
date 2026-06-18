@@ -2,6 +2,8 @@ package com.jlxc.mikucarhudreceiver;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
+import android.content.Intent;
+import android.provider.Settings;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -93,6 +95,19 @@ public class SettingsActivity extends Activity {
         debugModeCheck.setPadding(0, dp(4), 0, dp(16));
         root.addView(debugModeCheck);
 
+        TextView launcherHint = makeText("桌面模式：本 App 已注册为 Launcher 候选项。点击下面按钮后，在系统里把“车速HUD显示表”设为默认桌面。", 15, false);
+        launcherHint.setTextColor(0xffcccccc);
+        launcherHint.setPadding(0, dp(2), 0, dp(8));
+        root.addView(launcherHint);
+
+        Button launcherButton = new Button(this);
+        launcherButton.setText("设置为默认桌面 / Launcher");
+        launcherButton.setOnClickListener(v -> openHomeSettings());
+        root.addView(launcherButton, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+
         fontValue = makeText("字体大小", 16, true);
         root.addView(fontValue);
         fontSeek = new SeekBar(this);
@@ -136,6 +151,21 @@ public class SettingsActivity extends Activity {
 
         root.addView(buttons);
         setContentView(scrollView);
+    }
+
+    private void openHomeSettings() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_HOME_SETTINGS);
+            startActivity(intent);
+        } catch (Exception ignored) {
+            try {
+                Intent intent = new Intent(Intent.ACTION_MAIN);
+                intent.addCategory(Intent.CATEGORY_HOME);
+                startActivity(intent);
+            } catch (Exception e) {
+                Toast.makeText(this, "当前系统没有开放默认桌面设置入口", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private TextView makeText(String text, int sp, boolean bold) {
