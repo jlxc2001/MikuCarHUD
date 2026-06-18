@@ -60,6 +60,8 @@ public class AudiHudView extends View {
     // 这里用一阶阻尼把目标转速平滑到当前显示转速。
     private static final float RPM_DAMPING_TAU_MS = 260f;
     private static final float RPM_SNAP_EPS = 0.008f;
+    private static final float SPEED_DAMPING_TAU_MS = 220f;
+    private static final float SPEED_SNAP_EPS = 0.05f;
     private float displayedRpmValue = 0f;
     private long lastRpmAnimTimeMs = 0L;
 
@@ -465,8 +467,35 @@ public class AudiHudView extends View {
                 Color.rgb(120, 150, 160), 0f, 0.90f, 0.88f);
     }
 
+
+    private void updateDisplayedSpeed(long now) {
+        float target = targetSpeedKmh;
+        if (lastSpeedFrameAtMs <= 0L) {
+            displayedSpeedKmh = target;
+            lastSpeedFrameAtMs = now;
+            return;
+        }
+
+        long dtMs = Math.max(1L, Math.min(80L, now - lastSpeedFrameAtMs));
+        lastSpeedFrameAtMs = now;
+
+        float diff = target - displayedSpeedKmh;
+        if (Math.abs(diff) <= SPEED_SNAP_EPS) {
+            displayedSpeedKmh = target;
+            return;
+        }
+
+        float alpha = 1f - (float) Math.exp(-dtMs / SPEED_DAMPING_TAU_MS);
+        displayedSpeedKmh += diff * alpha;
+
+        if (Math.abs(target - displayedSpeedKmh) > SPEED_SNAP_EPS) {
+            postInvalidateDelayed(16L);
+        }
+    }
+
     private void drawSpeed(Canvas canvas, float fs) {
-        int speed = data == null ? 0 : data.speedKmh;
+        updateDisplayedSpeed(System.currentTimeMillis());
+        int speed = Math.round(displayedSpeedKmh);
         String speedText = String.valueOf(Math.max(0, speed));
         float centerX = bgDst.left + bgDst.width() * 0.525f;
         float baseline = bgDst.top + bgDst.height() * 0.735f;
