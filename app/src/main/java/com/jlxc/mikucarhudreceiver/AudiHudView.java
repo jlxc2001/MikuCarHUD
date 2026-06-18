@@ -82,6 +82,14 @@ public class AudiHudView extends View {
         this.senderText = sender == null ? "" : sender;
         this.packetCount = packetCount;
         this.lastPacketAtMs = receivedAtMs;
+
+        if (data != null) {
+            this.targetSpeedKmh = Math.max(0f, data.speedKmh);
+            if (lastSpeedFrameAtMs <= 0L) {
+                this.displayedSpeedKmh = this.targetSpeedKmh;
+            }
+        }
+
         invalidate();
     }
 
@@ -473,7 +481,8 @@ public class AudiHudView extends View {
 
 
     private void updateDisplayedSpeed(long now) {
-        float target = targetSpeedKmh;
+        float target = data == null ? targetSpeedKmh : Math.max(0f, data.speedKmh);
+        targetSpeedKmh = target;
         if (lastSpeedFrameAtMs <= 0L) {
             displayedSpeedKmh = target;
             lastSpeedFrameAtMs = now;
