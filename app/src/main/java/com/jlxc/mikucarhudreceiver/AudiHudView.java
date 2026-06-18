@@ -8,6 +8,7 @@ import android.graphics.Path;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.SystemClock;
 import android.view.View;
 
 import java.text.SimpleDateFormat;
@@ -54,6 +55,13 @@ public class AudiHudView extends View {
     private int fontScale = 100;
     private int listenPort = AppPrefs.DEFAULT_PORT;
     private boolean debugMode = AppPrefs.DEFAULT_DEBUG_MODE;
+
+    // UDP 数据约 500ms 一包，直接画原始 rpm 会一卡一卡。
+    // 这里用一阶阻尼把目标转速平滑到当前显示转速。
+    private static final float RPM_DAMPING_TAU_MS = 260f;
+    private static final float RPM_SNAP_EPS = 0.008f;
+    private float displayedRpmValue = 0f;
+    private long lastRpmAnimTimeMs = 0L;
 
     public AudiHudView(Context context) {
         super(context);
@@ -299,9 +307,42 @@ public class AudiHudView extends View {
         return new PointF(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
     }
 
+
+    private float updateDisplayedRpmValue(float targetRpmValue) {
+        long now = SystemClock.uptimeMillis();
+        if (lastRpmAnimTimeMs <= 0L) {
+            displayedRpmValue = targetRpmValue;
+            lastRpmAnimTimeMs = now;
+            return displayedRpmValue;
+        }
+
+        long dtMs = now - lastRpmAnimTimeMs;
+        lastRpmAnimTimeMs = now;
+        if (dtMs < 0L) dtMs = 0L;
+        if (dtMs > 80L) dtMs = 80L;
+
+        float diff = targetRpmValue - displayedRpmValue;
+        if (Math.abs(diff) <= RPM_SNAP_EPS) {
+            displayedRpmValue = targetRpmValue;
+            return displayedRpmValue;
+        }
+
+        float alpha = 1f - (float) Math.exp(-dtMs / RPM_DAMPING_TAU_MS);
+        alpha = clamp(alpha, 0.035f, 0.45f);
+        displayedRpmValue += diff * alpha;
+
+        // 只要还没追上目标值，就持续按屏幕刷新率重绘，
+        // 这样 500ms 一包的数据也能显示成连续滑动的进度条。
+        if (Math.abs(targetRpmValue - displayedRpmValue) > RPM_SNAP_EPS) {
+            postInvalidateOnAnimation();
+        }
+        return displayedRpmValue;
+    }
+
     private void drawRpmProgress(Canvas canvas) {
         if (data == null) return;
-        float rpmValue = clamp(data.rpm / 1000f, 0f, 8f);
+        float targetRpmValue = clamp(data.rpm / 1000f, 0f, 8f);
+        float rpmValue = updateDisplayedRpmValue(targetRpmValue);
         if (rpmValue <= 0.01f) return;
 
         boolean flashZone = rpmValue >= RED_ZONE_START;
