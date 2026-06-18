@@ -65,6 +65,10 @@ public class AudiHudView extends View {
     private float displayedRpmValue = 0f;
     private long lastRpmAnimTimeMs = 0L;
 
+    private float displayedSpeedKmh = 0f;
+    private float targetSpeedKmh = 0f;
+    private long lastSpeedFrameAtMs = 0L;
+
     public AudiHudView(Context context) {
         super(context);
         setBackgroundColor(Color.BLACK);
